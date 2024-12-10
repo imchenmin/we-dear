@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	"we-dear/models"
 )
@@ -26,7 +27,7 @@ func GetPatientStorage() *PatientStorage {
 	once.Do(func() {
 		instance = &PatientStorage{
 			messages:     make(map[string][]models.Message),
-			messagesPath: filepath.Join("data", "messages.json"),
+			messagesPath: filepath.Join("../data", "messages.json"),
 		}
 		instance.loadPatientsFromCSV()
 		instance.loadAllMessages()
@@ -98,6 +99,11 @@ func (s *PatientStorage) AddMessage(patientID string, message models.Message) er
 
 	for i := range s.patients {
 		if s.patients[i].ID == patientID {
+			if message.Timestamp.IsZero() {
+				message.Timestamp = time.Now()
+			}
+			message.UnixTime = message.Timestamp.UnixMilli()
+
 			s.patients[i].Messages = append(s.patients[i].Messages, message)
 			s.messages[patientID] = s.patients[i].Messages
 			go s.saveMessages()
@@ -105,6 +111,13 @@ func (s *PatientStorage) AddMessage(patientID string, message models.Message) er
 		}
 	}
 	return fmt.Errorf("patient not found")
+}
+
+func (s *PatientStorage) GetMessages(id string) []models.Message {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	fmt.Println(s.messages)
+	return s.messages[id]
 }
 
 func (s *PatientStorage) loadAllMessages() error {
@@ -121,9 +134,13 @@ func (s *PatientStorage) loadAllMessages() error {
 		return err
 	}
 
-	// Sync messages with patients
 	for i := range s.patients {
 		if messages, ok := s.messages[s.patients[i].ID]; ok {
+			for j := range messages {
+				if messages[j].Timestamp.IsZero() {
+					messages[j].Timestamp = time.Unix(0, messages[j].UnixTime*int64(time.Millisecond))
+				}
+			}
 			s.patients[i].Messages = messages
 		}
 	}
@@ -136,4 +153,16 @@ func (s *PatientStorage) saveMessages() error {
 		return err
 	}
 	return os.WriteFile(s.messagesPath, data, 0644)
+}
+
+func (s *PatientStorage) GetChatHistory(patientID string) ([]models.Message, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for i := range s.patients {
+		if s.patients[i].ID == patientID {
+			return s.patients[i].Messages, nil
+		}
+	}
+	return nil, fmt.Errorf("patient not found")
 }

@@ -3,87 +3,51 @@
     <el-card class="chat-card">
       <template #header>
         <div class="card-header">
-          <h2>患者聊天测试界面</h2>
+          <el-select
+            v-model="selectedPatientId"
+            placeholder="选择患者"
+            class="patient-select"
+          >
+            <el-option
+              v-for="patient in patients"
+              :key="patient.id"
+              :label="patient.name"
+              :value="patient.id"
+            />
+          </el-select>
         </div>
       </template>
 
-      <!-- 选择患者 -->
-      <el-select v-model="selectedPatientId" placeholder="选择患者" class="patient-select">
-        <el-option
-          v-for="patient in patients"
-          :key="patient.id"
-          :label="patient.name"
-          :value="patient.id"
-        />
-      </el-select>
-
-      <!-- 聊天记录 -->
       <div class="chat-messages" ref="chatContainer">
-        <div
-          v-for="(message, index) in currentPatient?.messages"
-          :key="index"
-          :class="['message', message.type]"
-        >
-          <div class="message-content">
-            <el-avatar
-              :size="32"
-              :src="message.type === 'patient' ? currentPatient?.avatar : doctorAvatar"
-            />
-            <div class="message-bubble">
-              <template v-if="message.contentType === 'text'">
-                {{ message.content }}
-              </template>
-              <template v-else-if="message.contentType === 'image'">
-                <el-image
-                  :src="message.content"
-                  :preview-src-list="[message.content]"
-                  fit="cover"
-                  class="message-image"
-                />
-              </template>
-              <template v-else-if="message.contentType === 'audio'">
-                <audio controls :src="message.content"></audio>
-              </template>
-            </div>
+        <template v-if="currentPatient">
+          <ChatMessage
+            v-for="message in currentPatient.messages"
+            :key="message.id"
+            :message="message"
+          />
+          <div v-if="currentPatient.messages?.length === 0" class="no-messages">
+            暂无消息记录
           </div>
-          <div v-if="message.aiSuggestion" class="ai-suggestion">
-            <el-alert
-              title="AI建议回复"
-              type="info"
-              :closable="false"
-            >
-              {{ message.aiSuggestion }}
-            </el-alert>
-          </div>
+        </template>
+        <div v-else class="no-patient-selected">
+          请选择一位患者开始对话
         </div>
       </div>
 
-      <!-- 输入区域 -->
       <div class="chat-input">
-        <el-input
-          v-model="newMessage"
-          type="textarea"
-          :rows="3"
-          placeholder="输入问题..."
-          :disabled="!selectedPatientId"
+        <ChatInput 
+          @send="handleSendMessage" 
+          :disabled="!currentPatient"
         />
-        <div class="input-actions">
+        <div class="upload-actions">
           <el-upload
-            action="http://localhost:8080/api/patient/upload"
+            action="/api/upload"
             :show-file-list="false"
             :on-success="handleImageUpload"
-            :disabled="!selectedPatientId"
+            :disabled="!currentPatient"
           >
-            <el-button type="primary" :icon="Picture" :disabled="!selectedPatientId">图片</el-button>
+            <el-button :icon="Picture" :disabled="!currentPatient">图片</el-button>
           </el-upload>
-          <el-button type="primary" :icon="Microphone" :disabled="!selectedPatientId">语音</el-button>
-          <el-button 
-            type="primary" 
-            @click="sendMessage" 
-            :disabled="!selectedPatientId || !newMessage.trim()"
-          >
-            发送
-          </el-button>
         </div>
       </div>
     </el-card>
@@ -92,15 +56,16 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { Picture, Microphone } from '@element-plus/icons-vue'
+import { Picture } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import ChatMessage from '@/components/ChatMessage.vue'
+import ChatInput from '@/components/ChatInput.vue'
+import { patientApi } from '@/api/patient'
+import type { Patient } from '@/types'
 
-const patients = ref([])
+const patients = ref<Patient[]>([])
 const selectedPatientId = ref('')
-const newMessage = ref('')
-const doctorAvatar = 'https://placeholder.co/100'
-const chatContainer = ref(null)
+const chatContainer = ref<HTMLElement | null>(null)
 
 // 获取当前选中的患者信息
 const currentPatient = computed(() => {
@@ -110,8 +75,8 @@ const currentPatient = computed(() => {
 // 加载患者列表
 const loadPatients = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/patients')
-    patients.value = response.data
+    const response = await patientApi.getAllPatients()
+    patients.value = response
   } catch (error) {
     console.error('Failed to load patients:', error)
     ElMessage.error('加载患者列表失败')
@@ -119,39 +84,33 @@ const loadPatients = async () => {
 }
 
 // 加载患者消息
-const loadPatientMessages = async () => {
+const loadPatientDetail = async () => {
   if (!selectedPatientId.value) return
 
   try {
-    const response = await axios.get(`http://localhost:8080/api/patient/${selectedPatientId.value}/messages`)
+    const response = await patientApi.getPatientById(selectedPatientId.value)
     const patientIndex = patients.value.findIndex(p => p.id === selectedPatientId.value)
     if (patientIndex !== -1) {
-      patients.value[patientIndex] = response.data.patient
+      patients.value[patientIndex] = response
     }
   } catch (error) {
-    console.error('Failed to load messages:', error)
-    ElMessage.error('加载消息失败')
+    console.error('Failed to load patient details:', error)
+    ElMessage.error('加载患者信息失败')
   }
 }
 
-// 发送消息
-const sendMessage = async () => {
-  if (!selectedPatientId.value || !newMessage.value.trim()) return
-
-  const message = {
-    type: 'patient',
-    contentType: 'text',
-    content: newMessage.value,
-    timestamp: new Date().toISOString()
-  }
+// 发送文本消息
+const handleSendMessage = async (content: string) => {
+  if (!currentPatient.value || !content.trim()) return
 
   try {
-    const response = await axios.post(
-      `http://localhost:8080/api/patient/${selectedPatientId.value}/question`,
-      message
+    await patientApi.sendPatientMessage(
+      selectedPatientId.value,
+      content,
+      currentPatient.value.name,
+      currentPatient.value.avatar
     )
-    await loadPatientMessages()
-    newMessage.value = ''
+    await loadPatientDetail()
     scrollToBottom()
   } catch (error) {
     console.error('Failed to send message:', error)
@@ -160,22 +119,17 @@ const sendMessage = async () => {
 }
 
 // 处理图片上传
-const handleImageUpload = async (response: any) => {
-  if (!selectedPatientId.value) return
-
-  const message = {
-    type: 'patient',
-    contentType: 'image',
-    content: `http://localhost:8080${response.url}`,
-    timestamp: new Date().toISOString()
-  }
+const handleImageUpload = async (response: { url: string }) => {
+  if (!currentPatient.value) return
 
   try {
-    await axios.post(
-      `http://localhost:8080/api/patient/${selectedPatientId.value}/question`,
-      message
+    await patientApi.sendPatientMessage(
+      selectedPatientId.value,
+      `[图片] ${response.url}`,
+      currentPatient.value.name,
+      currentPatient.value.avatar
     )
-    await loadPatientMessages()
+    await loadPatientDetail()
     scrollToBottom()
   } catch (error) {
     console.error('Failed to send image message:', error)
@@ -187,14 +141,18 @@ const handleImageUpload = async (response: any) => {
 const scrollToBottom = () => {
   if (chatContainer.value) {
     setTimeout(() => {
-      chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+      if (chatContainer.value) {
+        chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+      }
     }, 100)
   }
 }
 
 // 监听患者选择变化
 watch(selectedPatientId, () => {
-  loadPatientMessages()
+  if (selectedPatientId.value) {
+    loadPatientDetail()
+  }
 })
 
 // 组件挂载时加载数据
@@ -207,76 +165,53 @@ onMounted(() => {
 .patient-chat {
   max-width: 800px;
   margin: 20px auto;
-  padding: 20px;
+  height: calc(100vh - 40px);
 }
 
 .chat-card {
-  min-height: 600px;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
 
 .card-header {
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .patient-select {
-  width: 100%;
-  margin-bottom: 20px;
+  width: 200px;
 }
 
 .chat-messages {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
-  min-height: 300px;
-  border: 1px solid #eee;
+  background: #f5f7fa;
   border-radius: 4px;
   margin-bottom: 20px;
 }
 
-.message {
-  margin-bottom: 20px;
-}
-
-.message-content {
+.no-messages,
+.no-patient-selected {
+  height: 100%;
   display: flex;
-  gap: 10px;
-}
-
-.message.patient {
-  flex-direction: row;
-}
-
-.message.doctor {
-  flex-direction: row-reverse;
-}
-
-.message-bubble {
-  background: #f0f2f5;
-  padding: 10px;
-  border-radius: 8px;
-  max-width: 70%;
-}
-
-.message-image {
-  max-width: 200px;
-  border-radius: 4px;
-}
-
-.ai-suggestion {
-  margin-top: 10px;
-  margin-left: 42px;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+  font-size: 16px;
 }
 
 .chat-input {
-  margin-top: auto;
+  border-top: 1px solid #dcdfe6;
+  padding-top: 20px;
 }
 
-.input-actions {
+.upload-actions {
   display: flex;
-  gap: 10px;
-  margin-top: 10px;
   justify-content: flex-end;
+  margin-top: 12px;
+  gap: 8px;
 }
 </style> 

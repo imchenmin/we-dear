@@ -43,26 +43,84 @@ class PatientApi {
     }
   }
 
-  async sendMessage(patientId: string, message: Message): Promise<void> {
+  async getChatHistory(patientId: string): Promise<Message[]> {
     try {
-      console.log('Sending message to patient:', patientId, message)
-      const response = await fetch(`${this.baseUrl}/patients/${patientId}/messages`, {
+      console.log('Fetching chat history for patient:', patientId)
+      const response = await fetch(`${this.baseUrl}/chat/${patientId}`)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Failed to fetch chat history:', errorText)
+        throw new Error(`Failed to fetch chat history: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      console.log('Received chat history:', data)
+      return data
+    } catch (error) {
+      console.error('Error in getChatHistory:', error)
+      throw error
+    }
+  }
+
+  async sendDoctorMessage(patientId: string, content: string, sender: string, avatar?: string): Promise<Message> {
+    try {
+      console.log('Sending doctor message to patient:', patientId)
+      const response = await fetch(`${this.baseUrl}/chat/${patientId}/doctor`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(message),
+        body: JSON.stringify({
+          content,
+          sender,
+          avatar,
+          timestamp: Date.now(),
+        }),
       })
       
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('Failed to send message:', errorText)
+        console.error('Failed to send doctor message:', errorText)
         throw new Error(`Failed to send message: ${response.status} ${response.statusText}`)
       }
 
-      console.log('Message sent successfully')
+      const data = await response.json()
+      console.log('Message sent successfully:', data)
+      return data
     } catch (error) {
-      console.error('Error in sendMessage:', error)
+      console.error('Error in sendDoctorMessage:', error)
+      throw error
+    }
+  }
+
+  async sendPatientMessage(patientId: string, content: string, sender: string, avatar?: string): Promise<Message> {
+    try {
+      console.log('Sending patient message:', patientId)
+      const response = await fetch(`${this.baseUrl}/chat/${patientId}/patient`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content,
+          sender,
+          avatar,
+          timestamp: Date.now(),
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Failed to send patient message:', errorText)
+        throw new Error(`Failed to send message: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      console.log('Message sent successfully:', data)
+      return data
+    } catch (error) {
+      console.error('Error in sendPatientMessage:', error)
       throw error
     }
   }

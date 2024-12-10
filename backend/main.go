@@ -19,9 +19,16 @@ func main() {
 	// API 路由
 	api := router.Group("/api")
 	{
+		// 患者相关
 		api.GET("/patients", handlers.GetAllPatients)
 		api.GET("/patients/:id", handlers.GetPatientById)
-		api.POST("/patients/:id/messages", handlers.SendMessage)
+
+		// 消息相关
+		api.GET("/chat/:patientId", handlers.GetChatHistory)              // 获取聊天历史
+		api.POST("/chat/:patientId/doctor", handlers.SendDoctorMessage)   // 医生发送消息
+		api.POST("/chat/:patientId/patient", handlers.SendPatientMessage) // 患者发送消息
+
+		// 文件上传
 		api.POST("/upload", handlers.HandleUpload)
 	}
 
