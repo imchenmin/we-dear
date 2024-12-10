@@ -5,6 +5,7 @@ export interface Message {
   role: 'doctor' | 'patient'
   sender: string
   avatar?: string
+  aiSuggestion?: string
 }
 
 export interface Patient {

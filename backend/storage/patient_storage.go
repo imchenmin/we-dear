@@ -14,10 +14,12 @@ import (
 )
 
 type PatientStorage struct {
-	patients     []models.Patient
-	mu           sync.RWMutex
-	messages     map[string][]models.Message
-	messagesPath string
+	patients        []models.Patient
+	mu              sync.RWMutex
+	messages        map[string][]models.Message
+	suggestions     map[string][]models.AISuggestion // patientID -> suggestions
+	messagesPath    string
+	suggestionsPath string
 }
 
 var instance *PatientStorage
@@ -26,11 +28,14 @@ var once sync.Once
 func GetPatientStorage() *PatientStorage {
 	once.Do(func() {
 		instance = &PatientStorage{
-			messages:     make(map[string][]models.Message),
-			messagesPath: filepath.Join("../data", "messages.json"),
+			messages:        make(map[string][]models.Message),
+			suggestions:     make(map[string][]models.AISuggestion),
+			messagesPath:    filepath.Join("data", "messages.json"),
+			suggestionsPath: filepath.Join("data", "ai_suggestions.json"),
 		}
 		instance.loadPatientsFromCSV()
 		instance.loadAllMessages()
+		instance.loadAllSuggestions()
 	})
 	return instance
 }
@@ -165,4 +170,55 @@ func (s *PatientStorage) GetChatHistory(patientID string) ([]models.Message, err
 		}
 	}
 	return nil, fmt.Errorf("patient not found")
+}
+
+func (s *PatientStorage) SaveAISuggestion(suggestion *models.AISuggestion) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.suggestions == nil {
+		s.suggestions = make(map[string][]models.AISuggestion)
+	}
+
+	s.suggestions[suggestion.PatientID] = append(s.suggestions[suggestion.PatientID], *suggestion)
+	return s.saveSuggestions()
+}
+
+func (s *PatientStorage) GetAISuggestions(patientID string, messageID string) ([]models.AISuggestion, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	suggestions := s.suggestions[patientID]
+	if messageID != "" {
+		// 如果指定了消息ID，只返回该消息的建议
+		var filtered []models.AISuggestion
+		for _, sug := range suggestions {
+			if sug.MessageID == messageID {
+				filtered = append(filtered, sug)
+			}
+		}
+		return filtered, nil
+	}
+	return suggestions, nil
+}
+
+func (s *PatientStorage) loadAllSuggestions() error {
+	data, err := os.ReadFile(s.suggestionsPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			s.suggestions = make(map[string][]models.AISuggestion)
+			return nil
+		}
+		return err
+	}
+
+	return json.Unmarshal(data, &s.suggestions)
+}
+
+func (s *PatientStorage) saveSuggestions() error {
+	data, err := json.Marshal(s.suggestions)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(s.suggestionsPath, data, 0644)
 }

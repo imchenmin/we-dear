@@ -1,5 +1,13 @@
 import type { Patient, Message } from '@/types'
 
+interface AISuggestion {
+  id: string
+  patientId: string
+  messageId: string
+  content: string
+  timestamp: number
+}
+
 class PatientApi {
   private baseUrl = 'http://localhost:8080/api'
 
@@ -59,6 +67,25 @@ class PatientApi {
       return data
     } catch (error) {
       console.error('Error in getChatHistory:', error)
+      throw error
+    }
+  }
+
+  async getAISuggestions(patientId: string, messageId?: string): Promise<AISuggestion[]> {
+    try {
+      const url = new URL(`${this.baseUrl}/chat/${patientId}/suggestions`)
+      if (messageId) {
+        url.searchParams.append('messageId', messageId)
+      }
+
+      const response = await fetch(url.toString())
+      if (!response.ok) {
+        throw new Error(`Failed to fetch AI suggestions: ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Error fetching AI suggestions:', error)
       throw error
     }
   }

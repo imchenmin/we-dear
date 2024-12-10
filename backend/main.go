@@ -1,6 +1,7 @@
 package main
 
 import (
+	"we-dear/config"
 	"we-dear/handlers"
 	"we-dear/middleware"
 
@@ -8,6 +9,9 @@ import (
 )
 
 func main() {
+	// 初始化配置
+	config.Init()
+
 	router := gin.Default()
 
 	// 中间件

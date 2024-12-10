@@ -1,0 +1,4 @@
+id,name,gender,age,phone,diagnosis,doctor,avatar
+1,张三,男,45,13800138000,2型糖尿病,李医生,https://placeholder.co/100
+2,李四,女,58,13900139000,高血压,王医生,https://placeholder.co/100
+3,王五,男,62,13700137000,冠心病,张医生,https://placeholder.co/100 

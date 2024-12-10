@@ -6,13 +6,14 @@ import (
 )
 
 type Message struct {
-	ID        string    `json:"id"`
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"-"`         // 内部使用 time.Time
-	UnixTime  int64     `json:"timestamp"` // 对外使用 Unix 时间戳
-	Role      string    `json:"role"`      // "doctor" 或 "patient"
-	Sender    string    `json:"sender"`    // 发送者名称
-	Avatar    string    `json:"avatar,omitempty"`
+	ID           string    `json:"id"`
+	Content      string    `json:"content"`
+	Timestamp    time.Time `json:"-"`         // 内部使用 time.Time
+	UnixTime     int64     `json:"timestamp"` // 对外使用 Unix 时间戳
+	Role         string    `json:"role"`      // "doctor" 或 "patient"
+	Sender       string    `json:"sender"`    // 发送者名称
+	Avatar       string    `json:"avatar,omitempty"`
+	AISuggestion string    `json:"aiSuggestion,omitempty"` // AI 建议回复，仅医生可见
 }
 
 // 在序列化之前设置 UnixTime

@@ -18,6 +18,8 @@
             v-for="message in selectedPatient.messages"
             :key="message.id"
             :message="message"
+            :show-ai-suggestion="true"
+            :patient-id="selectedPatient.id"
           />
           <div v-if="selectedPatient.messages.length === 0" class="no-messages">
             暂无消息记录
