@@ -12,7 +12,7 @@
       </div>
       <div class="message-text">{{ message.content }}</div>
       
-      <!-- AI建议，仅在医生视图且是患者消息时显示 -->
+      <!-- AI建议，仅在医生视角且是患者消息时显示 -->
       <div v-if="showAISuggestion && message.role === 'patient'" class="ai-suggestion">
         <el-alert
           v-if="aiSuggestion"
@@ -30,6 +30,11 @@
             </div>
           </template>
           <div class="ai-suggestion-content">{{ aiSuggestion.content }}</div>
+          <div class="ai-suggestion-meta">
+            <span>置信度: {{ (aiSuggestion.confidence * 100).toFixed(0) }}%</span>
+            <span>类别: {{ getSuggestionCategory(aiSuggestion.category) }}</span>
+            <span>状态: {{ getSuggestionStatus(aiSuggestion.status) }}</span>
+          </div>
         </el-alert>
         <el-alert
           v-else-if="isLoadingAI"
@@ -53,7 +58,7 @@
 import { ref, onMounted } from 'vue'
 import { ChatLineRound, Loading } from '@element-plus/icons-vue'
 import type { Message, AISuggestion } from '@/types'
-import axios from 'axios'
+import { patientApi } from '@/api/patient'
 
 const props = defineProps<{
   message: Message
@@ -89,6 +94,25 @@ const getSuggestionPriorityText = (priority: number) => {
   }
 }
 
+const getSuggestionCategory = (category: string) => {
+  const categories: Record<string, string> = {
+    medication: '用药建议',
+    visit: '就医建议',
+    lifestyle: '生活建议',
+    urgent: '紧急建议'
+  }
+  return categories[category] || category
+}
+
+const getSuggestionStatus = (status: string) => {
+  const statuses: Record<string, string> = {
+    pending: '待审核',
+    approved: '已采纳',
+    rejected: '已拒绝'
+  }
+  return statuses[status] || status
+}
+
 // 加载 AI 建议
 const loadAISuggestion = async () => {
   if (!props.showAISuggestion || props.message.role !== 'patient') {
@@ -97,8 +121,7 @@ const loadAISuggestion = async () => {
 
   isLoadingAI.value = true
   try {
-    const response = await axios.get(`/api/chat/${props.message.patientId}/suggestions?messageId=${props.message.id}`)
-    const suggestions = response.data
+    const suggestions = await patientApi.getAISuggestions(props.message.patientId, props.message.id)
     if (suggestions && suggestions.length > 0) {
       aiSuggestion.value = suggestions[0]
     }
@@ -169,6 +192,14 @@ onMounted(() => {
   white-space: pre-line;
   color: #606266;
   font-size: 14px;
+}
+
+.ai-suggestion-meta {
+  margin-top: 8px;
+  display: flex;
+  gap: 16px;
+  color: #909399;
+  font-size: 12px;
 }
 
 :deep(.el-alert) {

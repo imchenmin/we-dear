@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"we-dear/config"
 	"we-dear/handlers"
 	"we-dear/middleware"
@@ -32,10 +33,10 @@ func main() {
 		api.POST("/chat/:patientId/doctor", handlers.SendDoctorMessage)    // 医生发送消息
 		api.POST("/chat/:patientId/patient", handlers.SendPatientMessage)  // 患者发送消息
 		api.GET("/chat/:patientId/suggestions", handlers.GetAISuggestions) // 获取 AI 建议
-
-		// 文件上传
-		api.POST("/upload", handlers.HandleUpload)
 	}
 
-	router.Run(":8080")
+	log.Printf("Server starting on http://localhost:8080")
+	if err := router.Run(":8080"); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 }

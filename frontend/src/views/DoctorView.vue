@@ -23,7 +23,7 @@
               v-for="message in messages"
               :key="message.id"
               :message="message"
-              :show-ai-suggestion="true"
+              :showAISuggestion="true"
             />
           </template>
           <div v-else class="no-messages">
@@ -83,7 +83,9 @@ const loadMessages = async () => {
   if (!activePatientId.value) return
   
   try {
+    console.log('Loading chat history for patient:', activePatientId.value)
     messages.value = await patientApi.getChatHistory(activePatientId.value)
+    console.log('Loaded messages:', messages.value)
     scrollToBottom()
   } catch (error) {
     console.error('Failed to load messages:', error)
@@ -96,11 +98,13 @@ const handleSendMessage = async (content: string) => {
   if (!selectedPatient.value) return
   
   try {
+    console.log('Sending message for patient:', activePatientId.value)
     const message = await patientApi.sendDoctorMessage(
       activePatientId.value,
       content,
       'doctor'
     )
+    console.log('Message sent:', message)
     messages.value.push(message)
     scrollToBottom()
   } catch (error) {
