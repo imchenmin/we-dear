@@ -28,9 +28,10 @@ func main() {
 		api.GET("/patients/:id", handlers.GetPatientById)
 
 		// 消息相关
-		api.GET("/chat/:patientId", handlers.GetChatHistory)              // 获取聊天历史
-		api.POST("/chat/:patientId/doctor", handlers.SendDoctorMessage)   // 医生发送消息
-		api.POST("/chat/:patientId/patient", handlers.SendPatientMessage) // 患者发送消息
+		api.GET("/chat/:patientId", handlers.GetChatHistory)               // 获取聊天历史
+		api.POST("/chat/:patientId/doctor", handlers.SendDoctorMessage)    // 医生发送消息
+		api.POST("/chat/:patientId/patient", handlers.SendPatientMessage)  // 患者发送消息
+		api.GET("/chat/:patientId/suggestions", handlers.GetAISuggestions) // 获取 AI 建议
 
 		// 文件上传
 		api.POST("/upload", handlers.HandleUpload)

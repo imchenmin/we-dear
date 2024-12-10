@@ -60,12 +60,17 @@ func SendDoctorMessage(c *gin.Context) {
 	}
 
 	message := models.Message{
-		ID:        strconv.FormatInt(time.Now().UnixNano(), 10),
+		BaseModel: models.BaseModel{
+			ID:        strconv.FormatInt(time.Now().UnixNano(), 10),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		PatientID: patientId,
+		DoctorID:  req.Sender,
 		Content:   req.Content,
-		Timestamp: time.Now(),
-		Role:      "doctor",
-		Sender:    req.Sender,
-		Avatar:    req.Avatar,
+		Type:      models.MessageTypeText,
+		Role:      models.MessageRoleDoctor,
+		Status:    models.MessageStatusUnread,
 	}
 
 	err := patientStorage.AddMessage(patientId, message)
@@ -95,12 +100,16 @@ func SendPatientMessage(c *gin.Context) {
 	// 生成消息
 	messageID := strconv.FormatInt(time.Now().UnixNano(), 10)
 	message := models.Message{
-		ID:        messageID,
+		BaseModel: models.BaseModel{
+			ID:        messageID,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		PatientID: patientId,
 		Content:   req.Content,
-		Timestamp: time.Now(),
-		Role:      "patient",
-		Sender:    req.Sender,
-		Avatar:    req.Avatar,
+		Type:      models.MessageTypeText,
+		Role:      models.MessageRolePatient,
+		Status:    models.MessageStatusUnread,
 	}
 
 	// 保存患者消息
@@ -112,7 +121,14 @@ func SendPatientMessage(c *gin.Context) {
 
 	// 生成 AI 建议（异步）
 	go func() {
-		suggestion, err := aiService.GenerateResponse(patient, messageID, req.Content, patient.Messages)
+		// 获取历史消息
+		messages, err := patientStorage.GetChatHistory(patientId)
+		if err != nil {
+			log.Printf("获取聊天历史失败: %v", err)
+			return
+		}
+
+		suggestion, err := aiService.GenerateResponse(patient, messageID, req.Content, messages)
 		if err != nil {
 			log.Printf("生成 AI 建议失败: %v", err)
 			return

@@ -1,201 +1,170 @@
 <template>
   <div class="doctor-view">
-    <div class="patient-section">
+    <!-- 左侧患者列表 -->
+    <div class="patient-list-container">
       <PatientList
-        v-model="activePatientId"
         :patients="patients"
+        v-model="activePatientId"
       />
     </div>
-    
-    <div class="chat-section">
-      <div class="chat-header">
-        <h2>{{ selectedPatient?.name || '无选中患者' }}</h2>
+
+    <!-- 右侧聊天区域 -->
+    <div class="chat-container" v-if="selectedPatient">
+      <!-- 患者信息卡片 -->
+      <div class="patient-info-card">
+        <PatientProfile :patient="selectedPatient" />
       </div>
-      
-      <div class="chat-messages" ref="chatContainer">
-        <template v-if="selectedPatient">
-          <ChatMessage
-            v-for="message in selectedPatient.messages"
-            :key="message.id"
-            :message="message"
-            :show-ai-suggestion="true"
-            :patient-id="selectedPatient.id"
-          />
-          <div v-if="selectedPatient.messages.length === 0" class="no-messages">
+
+      <!-- 聊天区域 -->
+      <div class="chat-area">
+        <div class="chat-messages" ref="messagesContainer">
+          <template v-if="messages.length > 0">
+            <ChatMessage
+              v-for="message in messages"
+              :key="message.id"
+              :message="message"
+              :show-ai-suggestion="true"
+            />
+          </template>
+          <div v-else class="no-messages">
             暂无消息记录
           </div>
-        </template>
-        <div v-else class="no-patient-selected">
-          请选择一位患者开始对话
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="chat-input-area">
+          <ChatInput
+            @send="handleSendMessage"
+            :disabled="!selectedPatient"
+          />
         </div>
       </div>
-      
-      <ChatInput @send="handleSendMessage" :disabled="!selectedPatient" />
-    </div>
-    
-    <div class="profile-section">
-      <PatientProfile :patient="selectedPatient" />
     </div>
 
-    <el-loading 
-      v-model:visible="loading"
-      :lock="true"
-      text="加载中..."
-    />
+    <!-- 未选择患者时的提示 -->
+    <div v-else class="no-patient-selected">
+      <el-empty description="请选择一位患者开始对话" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { ElMessage, ElLoading } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import PatientList from '@/components/PatientList.vue'
 import PatientProfile from '@/components/PatientProfile.vue'
 import ChatMessage from '@/components/ChatMessage.vue'
 import ChatInput from '@/components/ChatInput.vue'
 import { patientApi } from '@/api/patient'
-import type { Patient } from '@/types'
+import type { Patient, Message } from '@/types'
 
 const patients = ref<Patient[]>([])
 const activePatientId = ref('')
-const chatContainer = ref<HTMLElement | null>(null)
-const loading = ref(false)
+const messages = ref<Message[]>([])
+const messagesContainer = ref<HTMLElement | null>(null)
 
+// 当前选中的患者
 const selectedPatient = computed(() => {
   return patients.value.find(p => p.id === activePatientId.value)
 })
 
 // 获取所有患者信息
-const fetchPatients = async () => {
-  loading.value = true
+const loadPatients = async () => {
   try {
-    console.log('Fetching all patients...')
-    const response = await patientApi.getAllPatients()
-    console.log('Received patients:', response)
-    patients.value = response || []
+    patients.value = await patientApi.getPatients()
   } catch (error) {
-    console.error('Error fetching patients:', error)
-    ElMessage.error('获取患者列表失败，请刷新页面重试')
-    patients.value = []
-  } finally {
-    loading.value = false
+    console.error('Failed to load patients:', error)
+    ElMessage.error('加载患者列表失败')
   }
 }
 
-// 获取患者详细信息
-const fetchPatientDetail = async (id: string) => {
-  if (!id) return
+// 获取聊天记录
+const loadMessages = async () => {
+  if (!activePatientId.value) return
   
-  loading.value = true
   try {
-    console.log('Fetching patient details:', id)
-    const response = await patientApi.getPatientById(id)
-    console.log('Received patient details:', response)
-    
-    const patientIndex = patients.value.findIndex(p => p.id === id)
-    if (patientIndex !== -1) {
-      patients.value[patientIndex] = {
-        ...response,
-        messages: response.messages || []
-      }
-    }
+    messages.value = await patientApi.getChatHistory(activePatientId.value)
+    scrollToBottom()
   } catch (error) {
-    console.error('Error fetching patient details:', error)
-    ElMessage.error('获取患者详情失败，请重试')
-  } finally {
-    loading.value = false
+    console.error('Failed to load messages:', error)
+    ElMessage.error('加载聊天记录失败')
   }
 }
 
 // 发送消息
 const handleSendMessage = async (content: string) => {
-  if (!activePatientId.value || !content.trim()) {
-    ElMessage.warning('请先选择患者并输入消息')
-    return
-  }
-
-  loading.value = true
+  if (!selectedPatient.value) return
+  
   try {
-    const message = {
-      id: Date.now().toString(),
-      content: content.trim(),
-      timestamp: Date.now(),
-      role: 'doctor' as const,
-      sender: '医生',
-    }
-
-    await patientApi.sendMessage(activePatientId.value, message)
-    await fetchPatientDetail(activePatientId.value)
+    const message = await patientApi.sendDoctorMessage(
+      activePatientId.value,
+      content,
+      'doctor'
+    )
+    messages.value.push(message)
     scrollToBottom()
   } catch (error) {
-    console.error('Error sending message:', error)
-    ElMessage.error('发送消息失败，请重试')
-  } finally {
-    loading.value = false
+    console.error('Failed to send message:', error)
+    ElMessage.error('发送消息失败')
   }
 }
 
 // 滚动到底部
 const scrollToBottom = () => {
-  if (chatContainer.value) {
-    setTimeout(() => {
-      if (chatContainer.value) {
-        chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-      }
-    }, 100)
-  }
+  setTimeout(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+  }, 100)
 }
 
 // 监听患者切换
-watch(activePatientId, (newId) => {
-  if (newId) {
-    console.log('Patient selected:', newId)
-    fetchPatientDetail(newId)
-  }
+watch(activePatientId, () => {
+  messages.value = []
+  loadMessages()
 })
 
-// 监听消息变化，自动滚动
-watch(() => selectedPatient?.value?.messages, () => {
-  scrollToBottom()
-}, { deep: true })
-
-onMounted(async () => {
-  console.log('DoctorView mounted')
-  await fetchPatients()
+// 组件挂载时加载数据
+onMounted(() => {
+  loadPatients()
 })
 </script>
 
 <style scoped>
 .doctor-view {
-  display: grid;
-  grid-template-columns: 300px 1fr 300px;
+  display: flex;
   height: 100vh;
-  background: #f5f7fa;
-  position: relative;
+  background-color: #f5f7fa;
 }
 
-.patient-section {
-  background: #fff;
-  border-right: 1px solid #dcdfe6;
+.patient-list-container {
+  width: 300px;
+  flex-shrink: 0;
+  background-color: #fff;
+  border-right: 1px solid #e4e7ed;
 }
 
-.chat-section {
+.chat-container {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.patient-info-card {
+  width: 300px;
+  flex-shrink: 0;
+}
+
+.chat-area {
+  flex: 1;
   display: flex;
   flex-direction: column;
   background: #fff;
-  margin: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.chat-header {
-  padding: 16px;
-  border-bottom: 1px solid #dcdfe6;
-}
-
-.chat-header h2 {
-  margin: 0;
-  color: #303133;
-  font-size: 18px;
+  overflow: hidden;
 }
 
 .chat-messages {
@@ -204,18 +173,39 @@ onMounted(async () => {
   overflow-y: auto;
 }
 
-.no-patient-selected,
-.no-messages {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #909399;
-  font-size: 16px;
+.chat-input-area {
+  flex-shrink: 0;
+  border-top: 1px solid #e4e7ed;
 }
 
-.profile-section {
-  padding: 20px;
-  background: #f5f7fa;
+.no-messages {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #909399;
+  font-size: 14px;
+}
+
+.no-patient-selected {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #fff;
+}
+
+/* 自定义滚动条样式 */
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background-color: #dcdfe6;
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background-color: #f5f7fa;
 }
 </style> 

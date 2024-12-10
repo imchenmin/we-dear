@@ -32,20 +32,22 @@ func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, 
 - 姓名：%s
 - 性别：%s
 - 年龄：%d岁
-- 诊断：%s
-- 主治医生：%s
+- 血型：%s
+- 过敏史：%s
+- 慢性病史：%s
 
 请根据患者的问题和历史对话，给出专业、准确、易懂的建议。
 注意：
 1. 考虑患者的年龄和性别特点
-2. 结合患者的诊断情况
+2. 特别注意患者的过敏史和慢性病史
 3. 使用患者容易理解的语言
 4. 如有必要，建议及时就医`,
 		patient.Name,
 		patient.Gender,
 		patient.Age,
-		patient.Diagnosis,
-		patient.Doctor,
+		patient.BloodType,
+		strings.Join(patient.Allergies, "、"),
+		strings.Join(patient.ChronicDiseases, "、"),
 	)
 
 	// 构建对话历史上下文
@@ -76,7 +78,7 @@ func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, 
 
 	for _, msg := range recentMessages {
 		role := openai.ChatMessageRoleUser
-		if msg.Role == "doctor" {
+		if msg.Role == models.MessageRoleDoctor {
 			role = openai.ChatMessageRoleAssistant
 		}
 		messages = append(messages, openai.ChatCompletionMessage{
@@ -118,17 +120,22 @@ func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, 
 	aiContent := resp.Choices[0].Message.Content
 	log.Printf("\n=== AI 响应 ===\n%s\n=============\n", aiContent)
 
+	now := time.Now()
 	// 创建 AI 建议记录
 	suggestion := &models.AISuggestion{
-		ID:          fmt.Sprintf("ai_%d", time.Now().UnixNano()),
-		PatientID:   patient.ID,
-		MessageID:   messageID,
-		Content:     aiContent,
-		Timestamp:   time.Now(),
-		UnixTime:    time.Now().UnixMilli(),
-		PromptUsed:  systemPrompt,
-		ContextUsed: contextStr,
-		ModelUsed:   config.GlobalConfig.OpenAIModel,
+		BaseModel: models.BaseModel{
+			ID:        fmt.Sprintf("ai_%d", now.UnixNano()),
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		MessageID:  messageID,
+		PatientID:  patient.ID,
+		Content:    aiContent,
+		ModelUsed:  config.GlobalConfig.OpenAIModel,
+		Confidence: 0.95, // 默认置信度
+		Category:   models.AISuggestionCategoryMedication,
+		Priority:   3, // 默认优先级
+		Status:     models.AISuggestionStatusPending,
 	}
 
 	return suggestion, nil
@@ -146,7 +153,7 @@ func buildContext(history []models.Message) string {
 
 	for _, msg := range recentMessages {
 		contextBuilder.WriteString(fmt.Sprintf("[%s] %s: %s\n",
-			msg.Timestamp.Format("2006-01-02 15:04:05"),
+			msg.CreatedAt.Format("2006-01-02 15:04:05"),
 			msg.Role,
 			msg.Content,
 		))

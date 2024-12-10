@@ -1,20 +1,19 @@
 <template>
-  <div class="message" :class="{ 'message-right': isDoctor }">
+  <div class="message" :class="{ 'message-doctor': message.role === 'doctor', 'message-patient': message.role === 'patient' }">
     <el-avatar
       :size="40"
-      :src="isDoctor ? '/doctor-avatar.png' : message.avatar"
+      :src="message.role === 'doctor' ? '/doctor-avatar.png' : '/patient-avatar.png'"
       class="message-avatar"
     />
     <div class="message-content">
-      <div class="message-info">
-        <span class="message-sender">{{ isDoctor ? '医生' : message.sender }}</span>
-        <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+      <div class="message-header">
+        <span class="message-role">{{ message.role === 'doctor' ? '医生' : '患者' }}</span>
+        <span class="message-time">{{ formatTime(message.createdAt) }}</span>
       </div>
-      <div class="message-bubble">
-        {{ message.content }}
-      </div>
+      <div class="message-text">{{ message.content }}</div>
+      
       <!-- AI建议，仅在医生视图且是患者消息时显示 -->
-      <div v-if="showAISuggestion && !isDoctor" class="ai-suggestion">
+      <div v-if="showAISuggestion && message.role === 'patient'" class="ai-suggestion">
         <el-alert
           v-if="aiSuggestion"
           type="info"
@@ -25,6 +24,9 @@
             <div class="ai-suggestion-title">
               <el-icon><ChatLineRound /></el-icon>
               <span>AI建议回复</span>
+              <el-tag size="small" :type="getSuggestionPriorityType(aiSuggestion.priority)">
+                {{ getSuggestionPriorityText(aiSuggestion.priority) }}
+              </el-tag>
             </div>
           </template>
           <div class="ai-suggestion-content">{{ aiSuggestion.content }}</div>
@@ -48,38 +50,55 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ChatLineRound, Loading } from '@element-plus/icons-vue'
-import { patientApi } from '@/api/patient'
-import type { Message } from '@/types'
+import type { Message, AISuggestion } from '@/types'
+import axios from 'axios'
 
 const props = defineProps<{
   message: Message
-  showAISuggestion?: boolean // 是否显示AI建议（仅在医生视图中为true）
-  patientId?: string
+  showAISuggestion?: boolean
 }>()
 
-const isDoctor = computed(() => props.message.role === 'doctor')
-const aiSuggestion = ref<any>(null)
+const aiSuggestion = ref<AISuggestion | null>(null)
 const isLoadingAI = ref(false)
 
-const formatTime = (timestamp: number) => {
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+const formatTime = (timestamp: string) => {
+  return new Date(timestamp).toLocaleString()
+}
+
+const getSuggestionPriorityType = (priority: number) => {
+  switch (priority) {
+    case 5: return 'danger'    // 危急
+    case 4: return 'warning'   // 紧急
+    case 3: return ''          // 普通
+    case 2: return 'info'      // 低优先级
+    case 1: return 'success'   // 最低优先级
+    default: return 'info'
+  }
+}
+
+const getSuggestionPriorityText = (priority: number) => {
+  switch (priority) {
+    case 5: return '危急'
+    case 4: return '紧急'
+    case 3: return '普通'
+    case 2: return '低优先级'
+    case 1: return '最低优先级'
+    default: return '未知'
+  }
 }
 
 // 加载 AI 建议
 const loadAISuggestion = async () => {
-  if (!props.showAISuggestion || !props.patientId || isDoctor.value) {
+  if (!props.showAISuggestion || props.message.role !== 'patient') {
     return
   }
 
   isLoadingAI.value = true
   try {
-    const suggestions = await patientApi.getAISuggestions(props.patientId, props.message.id)
+    const response = await axios.get(`/api/chat/${props.message.patientId}/suggestions?messageId=${props.message.id}`)
+    const suggestions = response.data
     if (suggestions && suggestions.length > 0) {
       aiSuggestion.value = suggestions[0]
     }
@@ -103,7 +122,11 @@ onMounted(() => {
   gap: 12px;
 }
 
-.message-right {
+.message-doctor {
+  flex-direction: row;
+}
+
+.message-patient {
   flex-direction: row-reverse;
 }
 
@@ -111,22 +134,15 @@ onMounted(() => {
   max-width: 70%;
 }
 
-.message-info {
+.message-header {
+  display: flex;
+  justify-content: space-between;
   margin-bottom: 4px;
   font-size: 12px;
+  color: #666;
 }
 
-.message-sender {
-  font-weight: 500;
-  color: #606266;
-}
-
-.message-time {
-  margin-left: 8px;
-  color: #909399;
-}
-
-.message-bubble {
+.message-text {
   padding: 12px 16px;
   background: #f4f4f5;
   border-radius: 8px;
@@ -134,12 +150,8 @@ onMounted(() => {
   line-height: 1.4;
 }
 
-.message-right .message-bubble {
+.message-doctor .message-text {
   background: #ecf5ff;
-}
-
-.message-right .message-info {
-  text-align: right;
 }
 
 .ai-suggestion {
@@ -149,8 +161,7 @@ onMounted(() => {
 .ai-suggestion-title {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-weight: 500;
+  gap: 8px;
 }
 
 .ai-suggestion-content {

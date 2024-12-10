@@ -1,71 +1,72 @@
 <template>
   <div class="patient-chat">
-    <el-card class="chat-card">
-      <template #header>
-        <div class="card-header">
-          <el-select
-            v-model="selectedPatientId"
-            placeholder="选择患者"
-            class="patient-select"
-          >
-            <el-option
-              v-for="patient in patients"
-              :key="patient.id"
-              :label="patient.name"
-              :value="patient.id"
-            />
-          </el-select>
-        </div>
-      </template>
+    <!-- 左侧患者列表 -->
+    <div class="patient-list-container">
+      <PatientList
+        :patients="patients"
+        v-model="selectedPatientId"
+      />
+    </div>
 
-      <div class="chat-messages" ref="chatContainer">
-        <template v-if="currentPatient">
-          <ChatMessage
-            v-for="message in currentPatient.messages"
-            :key="message.id"
-            :message="message"
-          />
-          <div v-if="currentPatient.messages?.length === 0" class="no-messages">
+    <!-- 右侧聊天区域 -->
+    <div class="chat-container" v-if="currentPatient">
+      <!-- 聊天区域 -->
+      <div class="chat-area">
+        <div class="chat-header">
+          <el-avatar :size="40" :src="currentPatient.avatar" />
+          <div class="patient-info">
+            <div class="patient-name">{{ currentPatient.name }}</div>
+            <div class="patient-details">
+              {{ currentPatient.age }}岁 | {{ currentPatient.gender === 'male' ? '男' : '女' }}
+              <template v-if="currentPatient.chronicDiseases.length > 0">
+                | {{ currentPatient.chronicDiseases.join('、') }}
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-messages" ref="messagesContainer">
+          <template v-if="messages.length > 0">
+            <ChatMessage
+              v-for="message in messages"
+              :key="message.id"
+              :message="message"
+            />
+          </template>
+          <div v-else class="no-messages">
             暂无消息记录
           </div>
-        </template>
-        <div v-else class="no-patient-selected">
-          请选择一位患者开始对话
         </div>
-      </div>
 
-      <div class="chat-input">
-        <ChatInput 
-          @send="handleSendMessage" 
-          :disabled="!currentPatient"
-        />
-        <div class="upload-actions">
-          <el-upload
-            action="/api/upload"
-            :show-file-list="false"
-            :on-success="handleImageUpload"
+        <div class="chat-input-area">
+          <ChatInput
+            @send="handleSendMessage"
             :disabled="!currentPatient"
-          >
-            <el-button :icon="Picture" :disabled="!currentPatient">图片</el-button>
-          </el-upload>
+          />
         </div>
       </div>
-    </el-card>
+    </div>
+
+    <!-- 未选择患者时的提示 -->
+    <div v-else class="no-patient-selected">
+      <el-empty description="请选择一位患者开始对话" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { Picture } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import ChatMessage from '@/components/ChatMessage.vue'
 import ChatInput from '@/components/ChatInput.vue'
+import PatientList from '@/components/PatientList.vue'
 import { patientApi } from '@/api/patient'
-import type { Patient } from '@/types'
+import type { Patient, Message } from '@/types'
 
 const patients = ref<Patient[]>([])
 const selectedPatientId = ref('')
-const chatContainer = ref<HTMLElement | null>(null)
+const messages = ref<Message[]>([])
+const messagesContainer = ref<HTMLElement | null>(null)
 
 // 获取当前选中的患者信息
 const currentPatient = computed(() => {
@@ -75,42 +76,37 @@ const currentPatient = computed(() => {
 // 加载患者列表
 const loadPatients = async () => {
   try {
-    const response = await patientApi.getAllPatients()
-    patients.value = response
+    patients.value = await patientApi.getPatients()
   } catch (error) {
     console.error('Failed to load patients:', error)
     ElMessage.error('加载患者列表失败')
   }
 }
 
-// 加载患者消息
-const loadPatientDetail = async () => {
+// 加载聊天记录
+const loadMessages = async () => {
   if (!selectedPatientId.value) return
 
   try {
-    const response = await patientApi.getPatientById(selectedPatientId.value)
-    const patientIndex = patients.value.findIndex(p => p.id === selectedPatientId.value)
-    if (patientIndex !== -1) {
-      patients.value[patientIndex] = response
-    }
+    messages.value = await patientApi.getChatHistory(selectedPatientId.value)
+    scrollToBottom()
   } catch (error) {
-    console.error('Failed to load patient details:', error)
-    ElMessage.error('加载患者信息失败')
+    console.error('Failed to load messages:', error)
+    ElMessage.error('加载聊天记录失败')
   }
 }
 
-// 发送文本消息
+// 发送消息
 const handleSendMessage = async (content: string) => {
-  if (!currentPatient.value || !content.trim()) return
+  if (!currentPatient.value) return
 
   try {
-    await patientApi.sendPatientMessage(
+    const message = await patientApi.sendPatientMessage(
       selectedPatientId.value,
       content,
-      currentPatient.value.name,
-      currentPatient.value.avatar
+      currentPatient.value.name
     )
-    await loadPatientDetail()
+    messages.value.push(message)
     scrollToBottom()
   } catch (error) {
     console.error('Failed to send message:', error)
@@ -118,41 +114,19 @@ const handleSendMessage = async (content: string) => {
   }
 }
 
-// 处理图片上传
-const handleImageUpload = async (response: { url: string }) => {
-  if (!currentPatient.value) return
-
-  try {
-    await patientApi.sendPatientMessage(
-      selectedPatientId.value,
-      `[图片] ${response.url}`,
-      currentPatient.value.name,
-      currentPatient.value.avatar
-    )
-    await loadPatientDetail()
-    scrollToBottom()
-  } catch (error) {
-    console.error('Failed to send image message:', error)
-    ElMessage.error('发送图片失败')
-  }
-}
-
 // 滚动到底部
 const scrollToBottom = () => {
-  if (chatContainer.value) {
-    setTimeout(() => {
-      if (chatContainer.value) {
-        chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-      }
-    }, 100)
-  }
+  setTimeout(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+  }, 100)
 }
 
-// 监听患者选择变化
+// 监听患者切换
 watch(selectedPatientId, () => {
-  if (selectedPatientId.value) {
-    loadPatientDetail()
-  }
+  messages.value = []
+  loadMessages()
 })
 
 // 组件挂载时加载数据
@@ -163,55 +137,99 @@ onMounted(() => {
 
 <style scoped>
 .patient-chat {
-  max-width: 800px;
-  margin: 20px auto;
-  height: calc(100vh - 40px);
+  display: flex;
+  height: 100vh;
+  background-color: #f5f7fa;
 }
 
-.chat-card {
-  height: 100%;
+.patient-list-container {
+  width: 300px;
+  flex-shrink: 0;
+  background-color: #fff;
+  border-right: 1px solid #e4e7ed;
+}
+
+.chat-container {
+  flex: 1;
+  display: flex;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.chat-area {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
-.card-header {
+.chat-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #e4e7ed;
+  background-color: #fff;
 }
 
-.patient-select {
-  width: 200px;
+.patient-info {
+  flex: 1;
+}
+
+.patient-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.patient-details {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
 }
 
 .chat-messages {
   flex: 1;
-  overflow-y: auto;
   padding: 20px;
-  background: #f5f7fa;
-  border-radius: 4px;
-  margin-bottom: 20px;
+  overflow-y: auto;
 }
 
-.no-messages,
-.no-patient-selected {
-  height: 100%;
+.chat-input-area {
+  flex-shrink: 0;
+  border-top: 1px solid #e4e7ed;
+}
+
+.no-messages {
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+  height: 100%;
   color: #909399;
-  font-size: 16px;
+  font-size: 14px;
 }
 
-.chat-input {
-  border-top: 1px solid #dcdfe6;
-  padding-top: 20px;
-}
-
-.upload-actions {
+.no-patient-selected {
+  flex: 1;
   display: flex;
-  justify-content: flex-end;
-  margin-top: 12px;
-  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  background-color: #fff;
+}
+
+/* 自定义滚动条样式 */
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background-color: #dcdfe6;
+  border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background-color: #f5f7fa;
 }
 </style> 

@@ -19,7 +19,12 @@
         <el-avatar :size="40" :src="patient.avatar" />
         <div class="patient-info">
           <div class="patient-name">{{ patient.name }}</div>
-          <div class="patient-diagnosis">{{ patient.diagnosis }}</div>
+          <div class="patient-details">
+            {{ patient.age }}岁 | {{ patient.gender === 'male' ? '男' : '女' }}
+            <template v-if="patient.chronicDiseases.length > 0">
+              | {{ patient.chronicDiseases.join('、') }}
+            </template>
+          </div>
         </div>
       </div>
     </el-scrollbar>
@@ -46,7 +51,7 @@ const filteredPatients = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return props.patients.filter(patient => 
     patient.name.toLowerCase().includes(query) ||
-    patient.diagnosis.toLowerCase().includes(query)
+    patient.chronicDiseases.some(disease => disease.toLowerCase().includes(query))
   )
 })
 </script>
@@ -90,7 +95,7 @@ const filteredPatients = computed(() => {
   color: #303133;
 }
 
-.patient-diagnosis {
+.patient-details {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;

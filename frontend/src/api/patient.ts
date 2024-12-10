@@ -1,156 +1,54 @@
-import type { Patient, Message } from '@/types'
+import type { Patient, Message, AISuggestion } from '@/types'
+import axios from 'axios'
 
-interface AISuggestion {
-  id: string
-  patientId: string
-  messageId: string
-  content: string
-  timestamp: number
-}
+const API_BASE = '/api'
 
-class PatientApi {
-  private baseUrl = 'http://localhost:8080/api'
+export const patientApi = {
+  // 获取患者列表
+  async getPatients(): Promise<Patient[]> {
+    const response = await axios.get(`${API_BASE}/patients`)
+    return response.data
+  },
 
-  async getAllPatients(): Promise<Patient[]> {
-    try {
-      console.log('Fetching all patients from:', `${this.baseUrl}/patients`)
-      const response = await fetch(`${this.baseUrl}/patients`)
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Failed to fetch patients:', errorText)
-        throw new Error(`Failed to fetch patients: ${response.status} ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      console.log('Received patients data:', data)
-      return data
-    } catch (error) {
-      console.error('Error in getAllPatients:', error)
-      throw error
-    }
-  }
-
+  // 获取患者详情
   async getPatientById(id: string): Promise<Patient> {
-    try {
-      console.log('Fetching patient details:', id)
-      const response = await fetch(`${this.baseUrl}/patients/${id}`)
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error(`Failed to fetch patient ${id}:`, errorText)
-        throw new Error(`Failed to fetch patient: ${response.status} ${response.statusText}`)
-      }
+    const response = await axios.get(`${API_BASE}/patients/${id}`)
+    return response.data
+  },
 
-      const data = await response.json()
-      console.log('Received patient data:', data)
-      return data
-    } catch (error) {
-      console.error('Error in getPatientById:', error)
-      throw error
-    }
-  }
-
+  // 获取聊天历史
   async getChatHistory(patientId: string): Promise<Message[]> {
-    try {
-      console.log('Fetching chat history for patient:', patientId)
-      const response = await fetch(`${this.baseUrl}/chat/${patientId}`)
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Failed to fetch chat history:', errorText)
-        throw new Error(`Failed to fetch chat history: ${response.status} ${response.statusText}`)
-      }
+    const response = await axios.get(`${API_BASE}/chat/${patientId}`)
+    return response.data
+  },
 
-      const data = await response.json()
-      console.log('Received chat history:', data)
-      return data
-    } catch (error) {
-      console.error('Error in getChatHistory:', error)
-      throw error
-    }
+  // 发送医生消息
+  async sendDoctorMessage(patientId: string, content: string, sender: string): Promise<Message> {
+    const response = await axios.post(`${API_BASE}/chat/${patientId}/doctor`, {
+      content,
+      sender,
+      type: 'text',
+      role: 'doctor'
+    })
+    return response.data
+  },
+
+  // 发送患者消息
+  async sendPatientMessage(patientId: string, content: string, sender: string): Promise<Message> {
+    const response = await axios.post(`${API_BASE}/chat/${patientId}/patient`, {
+      content,
+      sender,
+      type: 'text',
+      role: 'patient'
+    })
+    return response.data
+  },
+
+  // 获取 AI 建议
+  async getAISuggestions(patientId: string, messageId: string): Promise<AISuggestion[]> {
+    const response = await axios.get(`${API_BASE}/chat/${patientId}/suggestions`, {
+      params: { messageId }
+    })
+    return response.data
   }
-
-  async getAISuggestions(patientId: string, messageId?: string): Promise<AISuggestion[]> {
-    try {
-      const url = new URL(`${this.baseUrl}/chat/${patientId}/suggestions`)
-      if (messageId) {
-        url.searchParams.append('messageId', messageId)
-      }
-
-      const response = await fetch(url.toString())
-      if (!response.ok) {
-        throw new Error(`Failed to fetch AI suggestions: ${response.status}`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error('Error fetching AI suggestions:', error)
-      throw error
-    }
-  }
-
-  async sendDoctorMessage(patientId: string, content: string, sender: string, avatar?: string): Promise<Message> {
-    try {
-      console.log('Sending doctor message to patient:', patientId)
-      const response = await fetch(`${this.baseUrl}/chat/${patientId}/doctor`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content,
-          sender,
-          avatar,
-          timestamp: Date.now(),
-        }),
-      })
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Failed to send doctor message:', errorText)
-        throw new Error(`Failed to send message: ${response.status} ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      console.log('Message sent successfully:', data)
-      return data
-    } catch (error) {
-      console.error('Error in sendDoctorMessage:', error)
-      throw error
-    }
-  }
-
-  async sendPatientMessage(patientId: string, content: string, sender: string, avatar?: string): Promise<Message> {
-    try {
-      console.log('Sending patient message:', patientId)
-      const response = await fetch(`${this.baseUrl}/chat/${patientId}/patient`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content,
-          sender,
-          avatar,
-          timestamp: Date.now(),
-        }),
-      })
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Failed to send patient message:', errorText)
-        throw new Error(`Failed to send message: ${response.status} ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      console.log('Message sent successfully:', data)
-      return data
-    } catch (error) {
-      console.error('Error in sendPatientMessage:', error)
-      throw error
-    }
-  }
-}
-
-export const patientApi = new PatientApi() 
+} 
