@@ -50,3 +50,29 @@ func GetAllDoctors(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, doctors)
 }
+
+func UpdateDoctor(c *gin.Context) {
+	id := c.Param("id")
+	var doctor models.Doctor
+	if err := c.ShouldBindJSON(&doctor); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	doctor.ID = id
+	if err := initDoctorStorage().UpdateDoctor(&doctor); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, doctor)
+}
+
+func DeleteDoctor(c *gin.Context) {
+	id := c.Param("id")
+	if err := initDoctorStorage().DeleteDoctor(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}

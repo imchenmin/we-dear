@@ -124,6 +124,10 @@ onMounted(async () => {
   }
 })
 
+const emit = defineEmits<{
+  (e: 'success'): void
+}>()
+
 const submitForm = async () => {
   if (!patientForm.value) return
   
@@ -147,6 +151,7 @@ const submitForm = async () => {
         if (response.ok) {
           ElMessage.success('患者添加成功')
           resetForm()
+          emit('success')  // 通知父组件添加成功
         } else {
           const error = await response.json()
           ElMessage.error(`患者添加失败: ${error.error}`)

@@ -38,12 +38,12 @@ func main() {
 
 		// 医生相关
 		api.GET("/doctors", handlers.GetAllDoctors)
-		// api.GET("/doctors/:id", handlers.GetDoctorById)
 		api.POST("/doctors", handlers.CreateDoctor)
+		api.PUT("/doctors/:id", handlers.UpdateDoctor)
+		api.DELETE("/doctors/:id", handlers.DeleteDoctor)
 
 		// 科室相关
 		api.GET("/departments", handlers.GetAllDepartments)
-		api.GET("/departments/:id", handlers.GetDepartmentByID)
 		api.POST("/departments", handlers.CreateDepartment)
 		api.PUT("/departments/:id", handlers.UpdateDepartment)
 		api.DELETE("/departments/:id", handlers.DeleteDepartment)
