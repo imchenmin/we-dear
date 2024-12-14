@@ -5,19 +5,45 @@ import (
 )
 
 type Config struct {
-	OpenAIAPIKey string
-	OpenAIModel  string
+	OpenAIKey   string
+	OpenAIModel string
+	DB          DatabaseConfig
 }
 
-var GlobalConfig Config
+type DatabaseConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Name     string
+}
+
+var GlobalConfig = Config{
+	OpenAIKey:   "your-api-key",
+	OpenAIModel: "gpt-3.5-turbo",
+	DB: DatabaseConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		User:     "postgres",
+		Password: "your-password",
+		Name:     "wedear",
+	},
+}
 
 func Init() {
 	GlobalConfig = Config{
-		OpenAIAPIKey: getEnvOrDefault("OPENAI_API_KEY", "sk-proj-efqvozACpCMXtMeEBWm9T3BlbkFJcQ0YiNNK1GSk5Iil7Dyg"),
-		OpenAIModel:  getEnvOrDefault("OPENAI_MODEL", "gpt-3.5-turbo"),
+		OpenAIKey:   "sk-proj-efqvozACpCMXtMeEBWm9T3BlbkFJcQ0YiNNK1GSk5Iil7Dyg",
+		OpenAIModel: "gpt-3.5-turbo",
+		DB: DatabaseConfig{
+			Host:     "localhost",
+			Port:     "5432",
+			User:     "postgres",
+			Password: "pccmdxy1998",
+			Name:     "wedear",
+		},
 	}
 
-	if GlobalConfig.OpenAIAPIKey == "" {
+	if GlobalConfig.OpenAIKey == "" {
 		panic("OPENAI_API_KEY environment variable is not set")
 	}
 }

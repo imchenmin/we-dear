@@ -9,14 +9,18 @@ import (
 	"we-dear/models"
 	"we-dear/services"
 	"we-dear/storage"
+	"we-dear/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
 var (
-	aiService      = services.NewAIService()
-	patientStorage = storage.GetPatientStorage()
+	aiService = services.NewAIService()
 )
+
+func initPatientStorage() *storage.PatientStorage {
+	return storage.GetPatientStorage()
+}
 
 // 通用的消息请求结构
 type MessageRequest struct {
@@ -27,13 +31,14 @@ type MessageRequest struct {
 }
 
 func GetAllPatients(c *gin.Context) {
+	patientStorage := initPatientStorage()
 	patients := patientStorage.GetAllPatients()
 	c.JSON(http.StatusOK, patients)
 }
 
 func GetPatientById(c *gin.Context) {
 	id := c.Param("id")
-	patient, err := patientStorage.GetPatientByID(id)
+	patient, err := initPatientStorage().GetPatientByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Patient not found"})
 		return
@@ -43,7 +48,7 @@ func GetPatientById(c *gin.Context) {
 
 func GetChatHistory(c *gin.Context) {
 	patientId := c.Param("patientId")
-	messages, err := patientStorage.GetChatHistory(patientId)
+	messages, err := initPatientStorage().GetChatHistory(patientId)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -73,7 +78,7 @@ func SendDoctorMessage(c *gin.Context) {
 		Status:    models.MessageStatusUnread,
 	}
 
-	err := patientStorage.AddMessage(patientId, message)
+	err := initPatientStorage().AddMessage(patientId, message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -91,7 +96,7 @@ func SendPatientMessage(c *gin.Context) {
 	}
 
 	// 获取患者信息和历史消息
-	patient, err := patientStorage.GetPatientByID(patientId)
+	patient, err := initPatientStorage().GetPatientByID(patientId)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Patient not found"})
 		return
@@ -113,7 +118,7 @@ func SendPatientMessage(c *gin.Context) {
 	}
 
 	// 保存患者消息
-	err = patientStorage.AddMessage(patientId, message)
+	err = initPatientStorage().AddMessage(patientId, message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -122,7 +127,7 @@ func SendPatientMessage(c *gin.Context) {
 	// 生成 AI 建议（异步）
 	go func() {
 		// 获取历史消息
-		messages, err := patientStorage.GetChatHistory(patientId)
+		messages, err := initPatientStorage().GetChatHistory(patientId)
 		if err != nil {
 			log.Printf("获取聊天历史失败: %v", err)
 			return
@@ -135,7 +140,7 @@ func SendPatientMessage(c *gin.Context) {
 		}
 
 		// 保存 AI 建议
-		err = patientStorage.SaveAISuggestion(suggestion)
+		err = initPatientStorage().SaveAISuggestion(suggestion)
 		if err != nil {
 			log.Printf("保存 AI 建议失败: %v", err)
 		}
@@ -149,11 +154,39 @@ func GetAISuggestions(c *gin.Context) {
 	patientId := c.Param("patientId")
 	messageId := c.Query("messageId")
 
-	suggestions, err := patientStorage.GetAISuggestions(patientId, messageId)
+	suggestions, err := initPatientStorage().GetAISuggestions(patientId, messageId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, suggestions)
+}
+
+func CreatePatient(c *gin.Context) {
+	var patient models.Patient
+	if err := c.ShouldBindJSON(&patient); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 设置创建时间等基础字段
+	now := time.Now()
+	patient.BaseModel = models.BaseModel{
+		ID:        utils.GenerateID(),
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	if err := patient.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := initPatientStorage().CreatePatient(&patient); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, patient)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 	"we-dear/config"
 	"we-dear/handlers"
 	"we-dear/middleware"
@@ -12,6 +13,12 @@ import (
 func main() {
 	// 初始化配置
 	config.Init()
+
+	// 初始化数据库连接
+	config.InitDB()
+
+	// 等待一下确保数据库连接完全建立
+	time.Sleep(time.Second)
 
 	router := gin.Default()
 
@@ -27,6 +34,19 @@ func main() {
 		// 患者相关
 		api.GET("/patients", handlers.GetAllPatients)
 		api.GET("/patients/:id", handlers.GetPatientById)
+		api.POST("/patients", handlers.CreatePatient)
+
+		// 医生相关
+		api.GET("/doctors", handlers.GetAllDoctors)
+		// api.GET("/doctors/:id", handlers.GetDoctorById)
+		api.POST("/doctors", handlers.CreateDoctor)
+
+		// 科室相关
+		api.GET("/departments", handlers.GetAllDepartments)
+		api.GET("/departments/:id", handlers.GetDepartmentByID)
+		api.POST("/departments", handlers.CreateDepartment)
+		api.PUT("/departments/:id", handlers.UpdateDepartment)
+		api.DELETE("/departments/:id", handlers.DeleteDepartment)
 
 		// 消息相关
 		api.GET("/chat/:patientId", handlers.GetChatHistory)               // 获取聊天历史
