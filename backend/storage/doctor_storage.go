@@ -56,3 +56,15 @@ func (s *DoctorStorage) UpdateDoctor(doctor *models.Doctor) error {
 func (s *DoctorStorage) DeleteDoctor(id string) error {
 	return s.db.Delete(&models.Doctor{}, "id = ?", id).Error
 }
+
+func (s *DoctorStorage) GetDoctorByUsername(username string) (*models.Doctor, error) {
+	var doctor models.Doctor
+	err := s.db.Preload("Department").First(&doctor, "username = ?", username).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("doctor not found")
+		}
+		return nil, err
+	}
+	return &doctor, nil
+}

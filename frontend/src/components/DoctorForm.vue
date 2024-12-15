@@ -52,6 +52,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { Department } from '../types'
+import { request } from '@/utils/request'
+
 
 const departments = ref<Department[]>([])
 
@@ -76,8 +78,7 @@ const doctorForm = ref()
 
 onMounted(async () => {
   try {
-    const response = await fetch('/api/departments')
-    departments.value = await response.json()
+    departments.value = await request.get('/departments')
   } catch (error) {
     ElMessage.error('获取科室列表失败')
   }
@@ -93,13 +94,8 @@ const submitForm = async () => {
   await doctorForm.value.validate(async (valid: boolean) => {
     if (valid) {
       try {
-        const response = await fetch('/api/doctors', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(form)
-        })
+        // 使用requets鉴权
+        const response = await request.post('/doctors', form)
         
         if (response.ok) {
           ElMessage.success('医生添加成功')

@@ -26,14 +26,19 @@ type Department struct {
 // Doctor 医生
 type Doctor struct {
 	BaseModel
-	Name         string     `json:"name"`         // 姓名
-	Title        string     `json:"title"`        // 职称
-	DepartmentID string     `json:"departmentId"` // 所属科室ID
-	Department   Department `json:"department"`   // 所属科室
-	License      string     `json:"license"`      // 执业证号
-	Specialty    string     `json:"specialty"`    // 专长
-	Avatar       string     `json:"avatar"`       // 头像
-	Status       string     `json:"status"`       // 状态（在职/离职等）
+	Name         string     `json:"name"`                       // 姓名
+	Username     string     `json:"username" gorm:"unique"`     // 登录用户名
+	Password     string     `json:"-" gorm:"not null"`          // 密码（json中不返回）
+	Salt         string     `json:"-"`                          // 密码盐
+	Title        string     `json:"title"`                      // 职称
+	DepartmentID string     `json:"departmentId"`               // 所属科室ID
+	Department   Department `json:"department"`                 // 所属科室
+	License      string     `json:"license"`                    // 执业证号
+	Specialty    string     `json:"specialty"`                  // 专长
+	Avatar       string     `json:"avatar"`                     // 头像
+	Status       string     `json:"status"`                     // 状态（在职/离职等）
+	Role         string     `json:"role" gorm:"default:doctor"` // 角色（医生/管理员）
+	LastLoginAt  time.Time  `json:"lastLoginAt"`                // 最后登录时间
 	Patients     []Patient  `json:"patients,omitempty" gorm:"foreignKey:DoctorID"`
 }
 
@@ -53,8 +58,9 @@ type Patient struct {
 	ChronicDiseases pq.StringArray `json:"chronicDiseases" gorm:"type:text[]"`
 	Avatar          string         `json:"avatar"`
 	Messages        []Message      `json:"messages,omitempty" gorm:"foreignKey:PatientID"`
-	DoctorID        string         `json:"doctorId" gorm:"index"` // 主治医生ID
-	Doctor          Doctor         `json:"doctor" gorm:"foreignKey:DoctorID"`
+	// TODO主治医生id，后续需要改为多对多关系。使用签约关系管理
+	DoctorID string `json:"doctorId" gorm:"index"` // 主治医生ID
+	Doctor   Doctor `json:"doctor" gorm:"foreignKey:DoctorID"`
 }
 
 // MedicalRecord 病历记录
@@ -80,7 +86,7 @@ type Message struct {
 	Content   string `json:"content"`   // 消息内容
 	Type      string `json:"type"`      // 消息类型（文本/图片/语音等）
 	Role      string `json:"role"`      // 发送者角色（医生/患者）
-	Status    string `json:"status"`    // 状态（未读/已读等）
+	Read      bool   `json:"read"`      // 是否已读
 	ReplyTo   string `json:"replyTo"`   // 回复的消息ID
 }
 

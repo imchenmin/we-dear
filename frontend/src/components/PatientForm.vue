@@ -86,6 +86,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { Doctor } from '../types'
+import { request } from '@/utils/request'
 
 const doctors = ref<Doctor[]>([])
 
@@ -117,10 +118,9 @@ const patientForm = ref()
 
 onMounted(async () => {
   try {
-    const response = await fetch('/api/doctors')
-    doctors.value = await response.json()
+    doctors.value = await request.get('/doctors')
   } catch (error) {
-    ElMessage.error('获取医生列表失败')
+    // 错误已在request拦截器中处理
   }
 })
 
@@ -140,24 +140,12 @@ const submitForm = async () => {
           chronicDiseases: form.chronicDiseases || []
         }
 
-        const response = await fetch('/api/patients', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        })
-        
-        if (response.ok) {
-          ElMessage.success('患者添加成功')
-          resetForm()
-          emit('success')  // 通知父组件添加成功
-        } else {
-          const error = await response.json()
-          ElMessage.error(`患者添加失败: ${error.error}`)
-        }
+        await request.post('/patients', formData)
+        ElMessage.success('患者添加成功')
+        resetForm()
+        emit('success')  // 通知父组件添加成功
       } catch (error) {
-        ElMessage.error('提交失败')
+        // 错误已在request拦截器中处理
       }
     }
   })

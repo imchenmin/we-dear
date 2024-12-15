@@ -76,3 +76,10 @@ func (s *PatientStorage) GetAISuggestions(patientID string, messageID string) ([
 func (s *PatientStorage) SaveAISuggestion(suggestion *models.AISuggestion) error {
 	return s.db.Create(suggestion).Error
 }
+
+// GetPatientsByDoctorID 获取指定医生的患者列表
+func (s *PatientStorage) GetPatientsByDoctorID(doctorID string) []models.Patient {
+	var patients []models.Patient
+	config.DB.Where("doctor_id = ?", doctorID).Find(&patients)
+	return patients
+}

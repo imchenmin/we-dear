@@ -14,7 +14,7 @@
           </el-menu-item>
           <el-menu-item index="/patient-chat">
             <el-icon><ChatDotRound /></el-icon>
-            患者聊天
+            患者聊天（调试端）
           </el-menu-item>
           <el-menu-item index="/departments">
             <el-icon><Monitor/></el-icon>
@@ -22,6 +22,16 @@
           </el-menu-item>
           
           <div class="menu-right">
+            <el-dropdown @command="handleCommand">
+              <el-avatar :size="32" :src="userStore.user?.avatar">
+                {{ userStore.user?.name?.[0] }}
+              </el-avatar>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
             <el-button type="primary" @click="showAddDoctor">
               <el-icon><Plus /></el-icon>添加医生
             </el-button>
@@ -66,9 +76,13 @@ import { Monitor, ChatDotRound, Plus } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import DoctorForm from '@/components/DoctorForm.vue'
 import PatientForm from '@/components/PatientForm.vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 const doctorDialogVisible = ref(false)
 const patientDialogVisible = ref(false)
+const router = useRouter()
+const userStore = useUserStore()
 
 const showAddDoctor = () => {
   doctorDialogVisible.value = true
@@ -94,6 +108,14 @@ const handleDoctorAdded = () => {
 const handlePatientAdded = () => {
   patientDialogVisible.value = false
   // 可以在这里刷新患者列表
+}
+
+const handleCommand = (command: string) => {
+  if (command === 'logout') {
+    userStore.logout()
+    router.push('/login')
+    ElMessage.success('已退出登录')
+  }
 }
 </script>
 

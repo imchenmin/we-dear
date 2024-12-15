@@ -31,28 +31,41 @@ func main() {
 	// API 路由
 	api := router.Group("/api")
 	{
+		// 公开路由
+		api.POST("/login", handlers.Login)
+		api.POST("/register", handlers.Register)
+	}
+
+	// 需要认证的路由
+	authorized := api.Group("")
+	authorized.Use(middleware.AuthRequired())
+	{
 		// 患者相关
-		api.GET("/patients", handlers.GetAllPatients)
-		api.GET("/patients/:id", handlers.GetPatientById)
-		api.POST("/patients", handlers.CreatePatient)
+		authorized.GET("/patients", handlers.GetAllPatients)
+		authorized.GET("/patients/:id", handlers.GetPatientById)
+		authorized.POST("/patients", handlers.CreatePatient)
 
 		// 医生相关
-		api.GET("/doctors", handlers.GetAllDoctors)
-		api.POST("/doctors", handlers.CreateDoctor)
-		api.PUT("/doctors/:id", handlers.UpdateDoctor)
-		api.DELETE("/doctors/:id", handlers.DeleteDoctor)
+		authorized.GET("/doctors", handlers.GetAllDoctors)
+		authorized.POST("/doctors", middleware.AdminRequired(), handlers.CreateDoctor)
+		authorized.PUT("/doctors/:id", handlers.UpdateDoctor)
+		authorized.DELETE("/doctors/:id", middleware.AdminRequired(), handlers.DeleteDoctor)
 
 		// 科室相关
-		api.GET("/departments", handlers.GetAllDepartments)
-		api.POST("/departments", handlers.CreateDepartment)
-		api.PUT("/departments/:id", handlers.UpdateDepartment)
-		api.DELETE("/departments/:id", handlers.DeleteDepartment)
+		authorized.GET("/departments", handlers.GetAllDepartments)
+		authorized.POST("/departments", middleware.AdminRequired(), handlers.CreateDepartment)
+		authorized.PUT("/departments/:id", middleware.AdminRequired(), handlers.UpdateDepartment)
+		authorized.DELETE("/departments/:id", middleware.AdminRequired(), handlers.DeleteDepartment)
 
 		// 消息相关
-		api.GET("/chat/:patientId", handlers.GetChatHistory)               // 获取聊天历史
-		api.POST("/chat/:patientId/doctor", handlers.SendDoctorMessage)    // 医生发送消息
-		api.POST("/chat/:patientId/patient", handlers.SendPatientMessage)  // 患者发送消息
-		api.GET("/chat/:patientId/suggestions", handlers.GetAISuggestions) // 获取 AI 建议
+		authorized.GET("/chat/list", handlers.GetChatList)                        // 获取聊天列表
+		authorized.GET("/chat/:patientId", handlers.GetChatHistory)               // 获取聊天历史
+		authorized.POST("/chat/:patientId/doctor", handlers.SendDoctorMessage)    // 医生发送消息
+		authorized.POST("/chat/:patientId/patient", handlers.SendPatientMessage)  // 患者发送消息
+		authorized.GET("/chat/:patientId/suggestions", handlers.GetAISuggestions) // 获取 AI 建议
+
+		// 用户相关
+		authorized.POST("/change-password", handlers.ChangePassword)
 	}
 
 	log.Printf("Server starting on http://localhost:8080")

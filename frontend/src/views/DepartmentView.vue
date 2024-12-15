@@ -7,7 +7,7 @@
             <span>科室列表</span>
             <el-button type="primary" @click="showAddDepartment">
               <el-icon><Plus /></el-icon>新增科室
-            </el-button>
+            </el-button> 
           </div>
         </template>
         
@@ -126,6 +126,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import DoctorForm from '@/components/DoctorForm.vue'
 import type { Department, Doctor } from '@/types'
+import { request } from '@/utils/request'
 
 const departments = ref<Department[]>([])
 const doctors = ref<Doctor[]>([])
@@ -155,20 +156,18 @@ const departmentRules = {
 // 获取科室列表
 const loadDepartments = async () => {
   try {
-    const response = await fetch('/api/departments')
-    departments.value = await response.json()
+    departments.value = await request.get('/departments')
   } catch (error) {
-    ElMessage.error('加载科室列表失败')
+    // 错误已在request拦截器中处理
   }
 }
 
 // 获取医生列表
 const loadDoctors = async () => {
   try {
-    const response = await fetch('/api/doctors')
-    doctors.value = await response.json()
+    doctors.value = await request.get('/doctors')
   } catch (error) {
-    ElMessage.error('加载医生列表失败')
+    // 错误已在request拦截器中处理
   }
 }
 
@@ -205,26 +204,16 @@ const editDepartment = (department: Department) => {
 const saveDepartment = async () => {
   try {
     const url = editingDepartment.value
-      ? `/api/departments/${editingDepartment.value.id}`
-      : '/api/departments'
-    const method = editingDepartment.value ? 'PUT' : 'POST'
+      ? `/departments/${editingDepartment.value.id}`
+      : '/departments'
+    const method = editingDepartment.value ? 'put' : 'post'
     
-    const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(departmentForm.value)
-    })
-
-    if (response.ok) {
-      ElMessage.success(`${editingDepartment.value ? '更新' : '创建'}科室成功`)
-      departmentDialogVisible.value = false
-      loadDepartments()
-    } else {
-      const error = await response.json()
-      ElMessage.error(error.error)
-    }
+    await request[method](url, departmentForm.value)
+    ElMessage.success(`${editingDepartment.value ? '更新' : '创建'}科室成功`)
+    departmentDialogVisible.value = false
+    loadDepartments()
   } catch (error) {
-    ElMessage.error('保存失败')
+    // 错误已在request拦截器中处理
   }
 }
 
@@ -241,21 +230,13 @@ const deleteDepartment = async (department: Department) => {
       }
     )
 
-    const response = await fetch(`/api/departments/${department.id}`, {
-      method: 'DELETE'
-    })
-
-    if (response.ok) {
-      ElMessage.success('删除科室成功')
-      loadDepartments()
-      loadDoctors()
-    } else {
-      const error = await response.json()
-      ElMessage.error(error.error)
-    }
+    await request.delete(`/departments/${department.id}`)
+    ElMessage.success('删除科室成功')
+    loadDepartments()
+    loadDoctors()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败')
+      // 错误已在request拦截器中处理
     }
   }
 }
@@ -279,20 +260,12 @@ const deleteDoctor = async (doctor: Doctor) => {
       }
     )
 
-    const response = await fetch(`/api/doctors/${doctor.id}`, {
-      method: 'DELETE'
-    })
-
-    if (response.ok) {
-      ElMessage.success('删除医生成功')
-      loadDoctors()
-    } else {
-      const error = await response.json()
-      ElMessage.error(error.error)
-    }
+    await request.delete(`/doctors/${doctor.id}`)
+    ElMessage.success('删除医生成功')
+    loadDoctors()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败')
+      // 错误已在request拦截器中处理
     }
   }
 }
