@@ -1,9 +1,5 @@
 import type { Patient, Message, AISuggestion } from '@/types'
-import axios from 'axios'
 import { request } from '@/utils/request'
-
-const API_BASE = '/api'
-
 
 export const patientApi = {
   // 获取患者列表

@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"time"
-	"we-dear/models"
 	"we-dear/storage"
 	"we-dear/utils"
 
@@ -15,6 +14,13 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type ChangePasswordRequest struct {
+	UserID      string `json:"userId"`      // 要修改密码的用户ID（管理员使用）
+	OldPassword string `json:"oldPassword"` // 旧密码（普通用户必填）
+	NewPassword string `json:"newPassword" binding:"required"`
+}
+
+// Login 处理登录请求
 func Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -57,73 +63,7 @@ func Login(c *gin.Context) {
 	})
 }
 
-type RegisterRequest struct {
-	Username     string `json:"username" binding:"required"`
-	Password     string `json:"password" binding:"required"`
-	Name         string `json:"name" binding:"required"`
-	Title        string `json:"title"`
-	DepartmentID string `json:"departmentId"`
-	License      string `json:"license"`
-	Specialty    string `json:"specialty"`
-}
-
-func Register(c *gin.Context) {
-	var req RegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 检查用户名是否已存在
-	_, err := storage.GetDoctorStorage().GetDoctorByUsername(req.Username)
-	if err == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "用户名已存在"})
-		return
-	}
-
-	// 生成密码盐和哈希
-	salt, err := utils.GenerateSalt()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成密码盐失败"})
-		return
-	}
-	hashedPassword := utils.HashPassword(req.Password, salt)
-
-	// 创建新医生
-	doctor := &models.Doctor{
-		BaseModel: models.BaseModel{
-			ID:        utils.GenerateID(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		Username:     req.Username,
-		Password:     hashedPassword,
-		Salt:         salt,
-		Name:         req.Name,
-		Title:        req.Title,
-		DepartmentID: req.DepartmentID,
-		License:      req.License,
-		Specialty:    req.Specialty,
-		Status:       "active",
-		Role:         "doctor", // 默认角色为普通医生
-	}
-
-	if err := storage.GetDoctorStorage().CreateDoctor(doctor); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建用户失败"})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "注册成功",
-		"id":      doctor.ID,
-	})
-}
-
-type ChangePasswordRequest struct {
-	OldPassword string `json:"oldPassword" binding:"required"`
-	NewPassword string `json:"newPassword" binding:"required"`
-}
-
+// ChangePassword 处理修改密码请求
 func ChangePassword(c *gin.Context) {
 	var req ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -131,21 +71,35 @@ func ChangePassword(c *gin.Context) {
 		return
 	}
 
-	// 从上下文获取当前用户ID
-	userID, _ := c.Get("userId")
+	// 获取当前用户信息
+	currentUserID, _ := c.Get("userId")
+	currentRole, _ := c.Get("role")
 
-	// 获取用户信息
-	doctor, err := storage.GetDoctorStorage().GetDoctorByID(userID.(string))
+	// 确定要修改密码的用户ID
+	targetUserID := currentUserID.(string)
+	if req.UserID != "" && currentRole == "admin" {
+		targetUserID = req.UserID
+	}
+
+	// 获取目标用户信息
+	doctor, err := storage.GetDoctorStorage().GetDoctorByID(targetUserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取用户信息失败"})
 		return
 	}
 
-	// 验证旧密码
-	hashedOldPassword := utils.HashPassword(req.OldPassword, doctor.Salt)
-	if hashedOldPassword != doctor.Password {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "旧密码错误"})
-		return
+	// 如果不是管理员，需要验证旧密码
+	if currentRole != "admin" {
+		if req.OldPassword == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "请输入原密码"})
+			return
+		}
+
+		hashedOldPassword := utils.HashPassword(req.OldPassword, doctor.Salt)
+		if hashedOldPassword != doctor.Password {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "原密码错误"})
+			return
+		}
 	}
 
 	// 生成新的密码盐和哈希

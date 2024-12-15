@@ -8,6 +8,7 @@ import (
 	"time"
 	"we-dear/config"
 	"we-dear/models"
+	"we-dear/storage"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -24,8 +25,61 @@ func NewAIService() *AIService {
 	}
 }
 
+func (s *AIService) ParseFollowUpRecords(patientID string, maxRecords int) (string, error) {
+	// 通过medical_storage获取随访记录
+	medicalStorage := storage.GetMedicalStorage()
+	followUpRecords, err := medicalStorage.GetFollowUpRecords(patientID)
+	if err != nil {
+		return "", err
+	}
+	// 提取最多maxRecords条随访记录，如果数量不足，只返回真实的数量
+	if len(followUpRecords) < maxRecords {
+		maxRecords = len(followUpRecords)
+	}
+	followUpRecords = followUpRecords[:maxRecords]
+	followUpRecordsStr := ""
+	for _, record := range followUpRecords {
+		followUpRecordsStr += fmt.Sprintf("```随访记录: %s\n随访日期: %s\n", record.Title, record.FollowUpDate.Format("2006-01-02 15:04:05"))
+		followUpRecordsStr += fmt.Sprintf("随访内容: %s\n", record.Content)
+		followUpRecordsStr += "```\n"
+	}
+	return followUpRecordsStr, nil
+}
+
+func (s *AIService) ParseMedicalRecords(patientID string, maxRecords int) (string, error) {
+	// 通过medical_storage获取诊疗记录和随访记录
+	medicalStorage := storage.GetMedicalStorage()
+	medicalRecords, err := medicalStorage.GetMedicalRecords(patientID)
+	if err != nil {
+		return "", err
+	}
+	// 提取最多maxRecords条诊疗记录，如果数量不足，只返回真实的数量
+	if len(medicalRecords) < maxRecords {
+		maxRecords = len(medicalRecords)
+	}
+	medicalRecords = medicalRecords[:maxRecords]
+	medicalRecordsStr := ""
+	for _, record := range medicalRecords {
+		medicalRecordsStr += fmt.Sprintf("```诊疗记录\n诊断日期: %s\n", record.DiagnosisDate.Format("2006-01-02 15:04:05"))
+		medicalRecordsStr += fmt.Sprintf("诊断结果: %s\n", record.Diagnosis)
+		medicalRecordsStr += fmt.Sprintf("治疗方案: %s\n", record.Treatment)
+		medicalRecordsStr += fmt.Sprintf("处方: %s\n", record.Prescription)
+		medicalRecordsStr += fmt.Sprintf("备注: %s\n", record.Notes)
+		medicalRecordsStr += "```\n"
+	}
+	return medicalRecordsStr, nil
+}
+
 // GenerateResponse 使用 OpenAI 生成回复建议
 func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, currentMessage string, messageHistory []models.Message) (*models.AISuggestion, error) {
+	medicalRecordsStr, err := s.ParseMedicalRecords(patient.ID, 5)
+	if err != nil {
+		return nil, err
+	}
+	followUpRecordsStr, err := s.ParseFollowUpRecords(patient.ID, 5)
+	if err != nil {
+		return nil, err
+	}
 	// 构建系统提示信息
 	systemPrompt := fmt.Sprintf(config.MedicalAssistantSystemPrompt,
 		patient.Name,
@@ -34,6 +88,10 @@ func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, 
 		patient.BloodType,
 		strings.Join(patient.Allergies, "、"),
 		strings.Join(patient.ChronicDiseases, "、"),
+		// 诊疗记录
+		medicalRecordsStr,
+		// 随访记录
+		followUpRecordsStr,
 	)
 
 	// 构建对话历史上下文

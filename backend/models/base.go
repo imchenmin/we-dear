@@ -47,7 +47,7 @@ type Patient struct {
 	BaseModel
 	Name            string         `json:"name" gorm:"index"`
 	Gender          string         `json:"gender"`
-	Age             int            `json:"age"`
+	Age             int            `json:"age"` // 由身份证号计算
 	Birthday        time.Time      `json:"birthday"`
 	Phone           string         `json:"phone" gorm:"index"`
 	EmergencyPhone  string         `json:"emergencyPhone"`
@@ -58,6 +58,7 @@ type Patient struct {
 	ChronicDiseases pq.StringArray `json:"chronicDiseases" gorm:"type:text[]"`
 	Avatar          string         `json:"avatar"`
 	Messages        []Message      `json:"messages,omitempty" gorm:"foreignKey:PatientID"`
+
 	// TODO主治医生id，后续需要改为多对多关系。使用签约关系管理
 	DoctorID string `json:"doctorId" gorm:"index"` // 主治医生ID
 	Doctor   Doctor `json:"doctor" gorm:"foreignKey:DoctorID"`
@@ -66,15 +67,19 @@ type Patient struct {
 // MedicalRecord 病历记录
 type MedicalRecord struct {
 	BaseModel
-	PatientID     string    `json:"patientId"`                   // 患者ID
-	DoctorID      string    `json:"doctorId"`                    // 医生ID
-	DiagnosisDate time.Time `json:"diagnosisDate"`               // 诊断日期
-	Symptoms      []string  `json:"symptoms" gorm:"type:text[]"` // 症状
-	Diagnosis     string    `json:"diagnosis"`                   // 诊断结果
-	Treatment     string    `json:"treatment"`                   // 治疗方案
-	Prescription  string    `json:"prescription"`                // 处方
-	Notes         string    `json:"notes"`                       // 备注
-	Status        string    `json:"status"`                      // 状态（进行中/已完成等）
+	PatientID     string         `json:"patientId" gorm:"index"`         // 患者ID
+	DoctorID      string         `json:"doctorId" gorm:"index"`          // 医生ID
+	DiagnosisDate time.Time      `json:"diagnosisDate"`                  // 诊断日期
+	Symptoms      pq.StringArray `json:"symptoms" gorm:"type:text[]"`    // 症状
+	Diagnosis     string         `json:"diagnosis"`                      // 诊断结果
+	Treatment     string         `json:"treatment"`                      // 治疗方案
+	Prescription  string         `json:"prescription"`                   // 处方
+	Notes         string         `json:"notes"`                          // 备注
+	Status        string         `json:"status"`                         // 状态（进行中/已完成等）
+	Type          string         `json:"type"`                           // 就诊类型（门诊/住院等）
+	Department    string         `json:"department"`                     // 就诊科室
+	Cost          float64        `json:"cost"`                           // 费用，非必填
+	Attachments   []string       `json:"attachments" gorm:"type:text[]"` // 附件列表
 }
 
 // Message 消息
@@ -120,4 +125,18 @@ type Attachment struct {
 	Size        int64  `json:"size"`        // 文件大小
 	ContentType string `json:"contentType"` // 文件类型
 	UploadedBy  string `json:"uploadedBy"`  // 上传者ID
+}
+
+// FollowUpRecord 随访记录
+type FollowUpRecord struct {
+	BaseModel
+	PatientID    string    `json:"patientId" gorm:"index"`         // 患者ID
+	DoctorID     string    `json:"doctorId" gorm:"index"`          // 医生ID
+	Title        string    `json:"title"`                          // 随访标题
+	Content      string    `json:"content"`                        // 随访内容
+	FollowUpDate time.Time `json:"followUpDate"`                   // 随访日期
+	NextFollowUp time.Time `json:"nextFollowUp"`                   // 下次随访日期
+	Status       string    `json:"status"`                         // 状态(completed/pending)
+	Type         string    `json:"type"`                           // 随访类型(常规/特殊)
+	Attachments  []string  `json:"attachments" gorm:"type:text[]"` // 附件列表
 }

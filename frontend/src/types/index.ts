@@ -70,6 +70,12 @@ export interface MedicalRecord extends BaseModel {
   prescription: string
   notes: string
   status: string
+  type: string
+  department: string
+  cost: number
+  attachments: string[]
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Attachment extends BaseModel {
@@ -81,4 +87,19 @@ export interface Attachment extends BaseModel {
   size: number
   contentType: string
   uploadedBy: string
+}
+
+export interface FollowUpRecord {
+  id: string
+  patientId: string
+  doctorId: string
+  title: string
+  content: string
+  followUpDate: string
+  nextFollowUp: string
+  status: 'completed' | 'pending'
+  type: string
+  attachments: string[]
+  createdAt: string
+  updatedAt: string
 } 

@@ -56,6 +56,7 @@ func InitDB() {
 		&models.Doctor{},
 		&models.Department{},
 		&models.Attachment{},
+		&models.FollowUpRecord{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)

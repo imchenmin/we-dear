@@ -33,7 +33,7 @@ func main() {
 	{
 		// 公开路由
 		api.POST("/login", handlers.Login)
-		api.POST("/register", handlers.Register)
+		// api.POST("/register", handlers.Register)
 	}
 
 	// 需要认证的路由
@@ -43,6 +43,7 @@ func main() {
 		// 患者相关
 		authorized.GET("/patients", handlers.GetAllPatients)
 		authorized.GET("/patients/:id", handlers.GetPatientById)
+		authorized.GET("/patients/:id/followup", handlers.GetFollowUpRecords)
 		authorized.POST("/patients", handlers.CreatePatient)
 
 		// 医生相关
@@ -64,8 +65,19 @@ func main() {
 		authorized.POST("/chat/:patientId/patient", handlers.SendPatientMessage)  // 患者发送消息
 		authorized.GET("/chat/:patientId/suggestions", handlers.GetAISuggestions) // 获取 AI 建议
 
-		// 用户相关
+		// 用户认证相关
 		authorized.POST("/change-password", handlers.ChangePassword)
+
+		// 随访记录相关路由
+		authorized.POST("/followup", handlers.CreateFollowUpRecord)
+		authorized.PUT("/followup/:id", handlers.UpdateFollowUpRecord)
+		authorized.DELETE("/followup/:id", handlers.DeleteFollowUpRecord)
+
+		// 医疗记录相关路由
+		authorized.GET("/patients/:id/medical", handlers.GetMedicalRecords)
+		authorized.POST("/medical", handlers.CreateMedicalRecord)
+		authorized.PUT("/medical/:id", handlers.UpdateMedicalRecord)
+		authorized.DELETE("/medical/:id", handlers.DeleteMedicalRecord)
 	}
 
 	log.Printf("Server starting on http://localhost:8080")

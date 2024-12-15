@@ -157,12 +157,12 @@ onMounted(() => {
 }
 
 .patient-info-card {
-  width: 300px;
+  width: 60%;
   flex-shrink: 0;
 }
 
 .chat-area {
-  flex: 1;
+  width: 40%;
   display: flex;
   flex-direction: column;
   background: #fff;
