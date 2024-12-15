@@ -18,8 +18,9 @@ type DatabaseConfig struct {
 	Name     string
 }
 
+// TODO 后续需要从环境变量中读取，并使用配置文件
 var GlobalConfig = Config{
-	OpenAIKey:   "your-api-key",
+	OpenAIKey:   "sk-proj-efqvozACpCMXtMeEBWm9T3BlbkFJcQ0YiNNK1GSk5Iil7Dyg",
 	OpenAIModel: "gpt-3.5-turbo",
 	DB: DatabaseConfig{
 		Host:     "localhost",

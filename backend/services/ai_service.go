@@ -18,6 +18,7 @@ type AIService struct {
 
 func NewAIService() *AIService {
 	client := openai.NewClient("sk-proj-efqvozACpCMXtMeEBWm9T3BlbkFJcQ0YiNNK1GSk5Iil7Dyg")
+	fmt.Println(config.GlobalConfig.OpenAIKey)
 	return &AIService{
 		client: client,
 	}
@@ -26,22 +27,7 @@ func NewAIService() *AIService {
 // GenerateResponse 使用 OpenAI 生成回复建议
 func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, currentMessage string, messageHistory []models.Message) (*models.AISuggestion, error) {
 	// 构建系统提示信息
-	systemPrompt := fmt.Sprintf(`你是一位专业的医疗助手，请基于以下患者信息提供专业的建议：
-
-患者信息：
-- 姓名：%s
-- 性别：%s
-- 年龄：%d岁
-- 血型：%s
-- 过敏史：%s
-- 慢性病史：%s
-
-请根据患者的问题和历史对话，给出专业、准确、易懂的建议。
-注意：
-1. 考虑患者的年龄和性别特点
-2. 特别注意患者的过敏史和慢性病史
-3. 使用患者容易理解的语言
-4. 如有必要，建议及时就医`,
+	systemPrompt := fmt.Sprintf(config.MedicalAssistantSystemPrompt,
 		patient.Name,
 		patient.Gender,
 		patient.Age,
@@ -101,9 +87,11 @@ func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, 
 	resp, err := s.client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model:       config.GlobalConfig.OpenAIModel,
+			Model:       config.DefaultAIConfig.Model,
 			Messages:    messages,
-			Temperature: 0.7,
+			Temperature: config.DefaultAIConfig.Temperature,
+			MaxTokens:   config.DefaultAIConfig.MaxTokens,
+			TopP:        config.DefaultAIConfig.TopP,
 		},
 	)
 
@@ -131,7 +119,7 @@ func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, 
 		MessageID:  messageID,
 		PatientID:  patient.ID,
 		Content:    aiContent,
-		ModelUsed:  config.GlobalConfig.OpenAIModel,
+		ModelUsed:  config.DefaultAIConfig.Model,
 		Confidence: 0.95, // 默认置信度
 		Category:   models.AISuggestionCategoryMedication,
 		Priority:   3, // 默认优先级

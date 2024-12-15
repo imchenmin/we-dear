@@ -205,30 +205,45 @@ func SendPatientMessage(c *gin.Context) {
 		return
 	}
 
-	// 生成 AI 建议（异步）
-	go func() {
-		// 获取历史消息
-		var messages []models.Message
-		if err := config.DB.Where("patient_id = ?", patientId).
-			Order("created_at asc").
-			Find(&messages).Error; err != nil {
-			log.Printf("获取聊天历史失败: %v", err)
-			return
-		}
+	// 将消息放入AI处理队列
+	go processAIResponse(message.ID, patientId, req.Content, &patient)
 
-		suggestion, err := aiService.GenerateResponse(&patient, messageID, req.Content, messages)
-		if err != nil {
-			log.Printf("生成 AI 建议失败: %v", err)
-			return
-		}
+	c.JSON(http.StatusOK, message)
+}
 
-		// 保存 AI 建议
-		if err := config.DB.Create(&suggestion).Error; err != nil {
-			log.Printf("保存 AI 建议失败: %v", err)
+// processAIResponse 处理AI响应的独立函数
+func processAIResponse(messageID string, patientID string, content string, patient *models.Patient) {
+	// 使用独立的数据库连接
+	db := config.DB.Session(&gorm.Session{})
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("AI处理过程发生panic: %v", r)
 		}
 	}()
 
-	c.JSON(http.StatusOK, message)
+	// 获取历史消息
+	var messages []models.Message
+	if err := db.Where("patient_id = ?", patientID).
+		Order("created_at asc").
+		Find(&messages).Error; err != nil {
+		log.Printf("获取聊天历史失败: %v", err)
+		return
+	}
+
+	// 生成AI建议
+	suggestion, err := aiService.GenerateResponse(patient, messageID, content, messages)
+	if err != nil {
+		log.Printf("生成AI建议失败: %v", err)
+		return
+	}
+
+	// 保存AI建议
+	if err := db.Create(&suggestion).Error; err != nil {
+		log.Printf("保存AI建议失败: %v", err)
+		return
+	}
+
+	log.Printf("成功生成并保存AI建议 (MessageID: %s)", messageID)
 }
 
 // GetAISuggestions 获取医生视图的 AI 建议
