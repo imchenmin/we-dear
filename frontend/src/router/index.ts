@@ -4,6 +4,7 @@ import DoctorView from '@/views/DoctorView.vue'
 import PatientChat from '@/views/PatientChat.vue'
 import DepartmentView from '@/views/DepartmentView.vue'
 import LoginView from '@/views/LoginView.vue'
+import TemplateManagementView from '@/views/TemplateManagementView.vue'
 import { useUserStore } from '@/stores/user'
 
 const router = createRouter({
@@ -32,6 +33,11 @@ const router = createRouter({
           path: 'departments',
           name: 'departments',
           component: DepartmentView
+        },
+        {
+          path: 'template-management',
+          name: 'template-management',
+          component: TemplateManagementView
         }
       ]
     }

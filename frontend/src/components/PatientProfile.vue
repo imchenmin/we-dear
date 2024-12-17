@@ -10,15 +10,26 @@
         </span>
       </div>
     </div>
+
+    <!-- 使用固定位置的tabs作为导航 -->
+    <div class="profile-nav">
+      <el-tabs @tab-click="handleTabClick">
+        <el-tab-pane label="基本信息" name="basic" />
+        <el-tab-pane label="随访记录" name="followup" />
+        <el-tab-pane label="医疗记录" name="medical" />
+      </el-tabs>
+    </div>
     
-    <el-tabs class="profile-tabs">
-      <!-- 基本信息标签页 -->
-      <el-tab-pane label="基本信息">
+    <!-- 内容区域改为垂直布局 -->
+    <div class="profile-content">
+      <!-- 基本信息部分 -->
+      <div id="basic" class="section">
+        <h3 class="section-title">基本信息</h3>
         <div class="profile-info">
-          <el-descriptions :column="2" border>
+          <el-descriptions :column="1" border>
             <el-descriptions-item label="性别">{{ formatGender(patient.gender) }}</el-descriptions-item>
             <el-descriptions-item label="年龄">{{ patient.age }}岁</el-descriptions-item>
-            <el-descriptions-item label="出生日期">{{ formatDate(patient.birthday) }}</el-descriptions-item>
+            <el-descriptions-item label="出生年月（未校验仅展示）">{{ formatDate(patient.birthday) }}</el-descriptions-item>
             <el-descriptions-item label="血型">{{ patient.bloodType || '未知' }}</el-descriptions-item>
             <el-descriptions-item label="联系电话" :span="2">{{ patient.phone }}</el-descriptions-item>
             <el-descriptions-item label="紧急联系电话" :span="2">{{ patient.emergencyPhone }}</el-descriptions-item>
@@ -49,17 +60,17 @@
             </el-descriptions-item>
           </el-descriptions>
         </div>
-      </el-tab-pane>
+      </div>
 
-      <!-- 随访记录标签页 -->
-      <el-tab-pane label="随访记录">
+      <!-- 随访记录部分 -->
+      <div id="followup" class="section">
+        <div class="section-header">
+          <h3 class="section-title">随访记录</h3>
+          <el-button type="primary" @click="showAddFollowUp">
+            <el-icon><Plus /></el-icon>新增随访
+          </el-button>
+        </div>
         <div class="follow-up-records">
-          <div class="records-header">
-            <h3>随访记录列表</h3>
-            <el-button type="primary" @click="showAddFollowUp">
-              <el-icon><Plus /></el-icon>新增随访
-            </el-button>
-          </div>
           <el-timeline>
             <el-timeline-item
               v-for="record in followUpRecords"
@@ -78,75 +89,17 @@
             </el-timeline-item>
           </el-timeline>
         </div>
+      </div>
 
-        <!-- 新增随访记录弹窗 -->
-        <el-dialog
-          v-model="followUpDialogVisible"
-          title="新增随访记录"
-          width="50%"
-        >
-          <el-form
-            ref="followUpFormRef"
-            :model="followUpForm"
-            :rules="followUpRules"
-            label-width="100px"
-          >
-            <el-form-item label="随访标题" prop="title">
-              <el-input v-model="followUpForm.title" placeholder="请输入随访标题" />
-            </el-form-item>
-            <el-form-item label="随访内容" prop="content">
-              <el-input
-                v-model="followUpForm.content"
-                type="textarea"
-                rows="4"
-                placeholder="请输入随访内容"
-              />
-            </el-form-item>
-            <el-form-item label="随访日期" prop="followUpDate">
-              <el-date-picker
-                v-model="followUpForm.followUpDate"
-                type="datetime"
-                placeholder="选择随访日期"
-              />
-            </el-form-item>
-            <el-form-item label="下次随访" prop="nextFollowUp">
-              <el-date-picker
-                v-model="followUpForm.nextFollowUp"
-                type="datetime"
-                placeholder="选择下次随访日期"
-              />
-            </el-form-item>
-            <el-form-item label="随访类型" prop="type">
-              <el-select v-model="followUpForm.type" placeholder="请选择随访类型">
-                <el-option label="常规随访" value="regular" />
-                <el-option label="特殊随访" value="special" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="状态" prop="status">
-              <el-select v-model="followUpForm.status" placeholder="请选择状态">
-                <el-option label="已完成" value="completed" />
-                <el-option label="待随访" value="pending" />
-              </el-select>
-            </el-form-item>
-          </el-form>
-          <template #footer>
-            <span class="dialog-footer">
-              <el-button @click="followUpDialogVisible = false">取消</el-button>
-              <el-button type="primary" @click="submitFollowUp">确定</el-button>
-            </span>
-          </template>
-        </el-dialog>
-      </el-tab-pane>
-
-      <!-- 医疗记录标签页 -->
-      <el-tab-pane label="医疗记录">
+      <!-- 医疗记录部分 -->
+      <div id="medical" class="section">
+        <div class="section-header">
+          <h3 class="section-title">医疗记录</h3>
+          <el-button type="primary" @click="showAddMedical">
+            <el-icon><Plus /></el-icon>新增病历
+          </el-button>
+        </div>
         <div class="medical-records">
-          <div class="records-header">
-            <h3>医疗记录列表</h3>
-            <el-button type="primary" @click="showAddMedical">
-              <el-icon><Plus /></el-icon>新增病历
-            </el-button>
-          </div>
           <el-table :data="medicalRecords" style="width: 100%">
             <el-table-column prop="diagnosisDate" label="就诊日期" width="180">
               <template #default="scope">
@@ -164,91 +117,101 @@
             </el-table-column>
           </el-table>
         </div>
+      </div>
+    </div>
 
-        <!-- 新增医疗记录弹窗 -->
-        <el-dialog
-          v-model="medicalDialogVisible"
-          title="新增医疗记录"
-          width="50%"
-        >
-          <el-form
-            ref="medicalFormRef"
-            :model="medicalForm"
-            :rules="medicalRules"
-            label-width="100px"
-          >
-            <el-form-item label="就诊日期" prop="diagnosisDate">
-              <el-date-picker
-                v-model="medicalForm.diagnosisDate"
-                type="datetime"
-                placeholder="选择就诊日期"
-              />
-            </el-form-item>
-            <el-form-item label="症状" prop="symptoms">
-              <el-select
-                v-model="medicalForm.symptoms"
-                multiple
-                filterable
-                allow-create
-                default-first-option
-                placeholder="请输入症状"
-              />
-            </el-form-item>
-            <el-form-item label="诊断结果" prop="diagnosis">
-              <el-input v-model="medicalForm.diagnosis" placeholder="请输入诊断结果" />
-            </el-form-item>
-            <el-form-item label="治疗方案" prop="treatment">
-              <el-input
-                v-model="medicalForm.treatment"
-                type="textarea"
-                rows="3"
-                placeholder="请输入治疗方案"
-              />
-            </el-form-item>
-            <el-form-item label="处方" prop="prescription">
-              <el-input
-                v-model="medicalForm.prescription"
-                type="textarea"
-                rows="3"
-                placeholder="请输入处方"
-              />
-            </el-form-item>
-            <el-form-item label="就诊类型" prop="type">
-              <el-select v-model="medicalForm.type" placeholder="请选择就诊类型">
-                <el-option label="门诊" value="outpatient" />
-                <el-option label="住院" value="inpatient" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="就诊科室" prop="department">
-              <el-input v-model="medicalForm.department" placeholder="请输入就诊科室" />
-            </el-form-item>
-            <el-form-item label="费用" prop="cost">
-              <el-input-number v-model="medicalForm.cost" :precision="2" :step="0.01" />
-            </el-form-item>
-            <el-form-item label="状态" prop="status">
-              <el-select v-model="medicalForm.status" placeholder="请选择状态">
-                <el-option label="进行中" value="ongoing" />
-                <el-option label="已完成" value="completed" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="备注" prop="notes">
-              <el-input
-                v-model="medicalForm.notes"
-                type="textarea"
-                rows="2"
-                placeholder="请输入备注"
-              />
-            </el-form-item>
-          </el-form>
-          <template #footer>
-            <span class="dialog-footer">
-              <el-button @click="medicalDialogVisible = false">取消</el-button>
-              <el-button type="primary" @click="submitMedical">确定</el-button>
-            </span>
-          </template>
-        </el-dialog>
-      </el-tab-pane>
-    </el-tabs>
+    <!-- 弹窗部分保持不变 -->
+    <el-dialog v-model="followUpDialogVisible" title="新增随访记录" width="60%">
+      <FollowUpTemplateForm
+        ref="templateFormRef"
+        :patient-id="patient.id"
+        @submit="handleTemplateSubmit"
+      />
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="followUpDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitFollowUp">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="medicalDialogVisible" title="新增医疗记录" width="50%">
+      <el-form
+        ref="medicalFormRef"
+        :model="medicalForm"
+        :rules="medicalRules"
+        label-width="100px"
+      >
+        <el-form-item label="就诊日期" prop="diagnosisDate">
+          <el-date-picker
+            v-model="medicalForm.diagnosisDate"
+            type="datetime"
+            placeholder="选择就诊日期"
+          />
+        </el-form-item>
+        <el-form-item label="症状" prop="symptoms">
+          <el-select
+            v-model="medicalForm.symptoms"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="请输入症状"
+          />
+        </el-form-item>
+        <el-form-item label="诊断结果" prop="diagnosis">
+          <el-input v-model="medicalForm.diagnosis" placeholder="请输入诊断结果" />
+        </el-form-item>
+        <el-form-item label="治疗方案" prop="treatment">
+          <el-input
+            v-model="medicalForm.treatment"
+            type="textarea"
+            rows="3"
+            placeholder="请输入治疗方案"
+          />
+        </el-form-item>
+        <el-form-item label="处方" prop="prescription">
+          <el-input
+            v-model="medicalForm.prescription"
+            type="textarea"
+            rows="3"
+            placeholder="请输入处方"
+          />
+        </el-form-item>
+        <el-form-item label="就诊类型" prop="type">
+          <el-select v-model="medicalForm.type" placeholder="请选择就诊类型">
+            <el-option label="门诊" value="outpatient" />
+            <el-option label="住院" value="inpatient" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="就诊科室" prop="department">
+          <el-input v-model="medicalForm.department" placeholder="请输入就诊科室" />
+        </el-form-item>
+        <el-form-item label="费用" prop="cost">
+          <el-input-number v-model="medicalForm.cost" :precision="2" :step="0.01" />
+        </el-form-item>
+        <el-form-item label="状态" prop="status">
+          <el-select v-model="medicalForm.status" placeholder="请选择状态">
+            <el-option label="进行中" value="ongoing" />
+            <el-option label="已完成" value="completed" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注" prop="notes">
+          <el-input
+            v-model="medicalForm.notes"
+            type="textarea"
+            rows="2"
+            placeholder="请输入备注"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="medicalDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitMedical">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -259,6 +222,7 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import type { Patient, FollowUpRecord, MedicalRecord } from '@/types'
 import { medicalApi } from '@/api/medical'
+import FollowUpTemplateForm from '@/components/FollowUpTemplateForm.vue'
 
 const props = defineProps<{
   patient?: Patient
@@ -316,59 +280,45 @@ const formatGender = (gender: string) => {
 
 // 随访记录表单相关
 const followUpDialogVisible = ref(false)
-const followUpFormRef = ref<FormInstance>()
-const followUpForm = ref({
-  title: '',
-  content: '',
-  followUpDate: '',
-  nextFollowUp: '',
-  type: 'regular',
-  status: 'pending'
-})
-
-const followUpRules = {
-  title: [{ required: true, message: '请输入随访标题', trigger: 'blur' }],
-  content: [{ required: true, message: '请输入随访内容', trigger: 'blur' }],
-  followUpDate: [{ required: true, message: '请选择随访日期', trigger: 'change' }],
-  nextFollowUp: [{ required: true, message: '请选择下次随访日期', trigger: 'change' }],
-  type: [{ required: true, message: '请选择随访类型', trigger: 'change' }],
-  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
-}
+const templateFormRef = ref<InstanceType<typeof FollowUpTemplateForm> | null>(null)
 
 // 显示新增随访记录弹窗
 const showAddFollowUp = () => {
   followUpDialogVisible.value = true
-  followUpForm.value = {
-    title: '',
-    content: '',
-    followUpDate: '',
-    nextFollowUp: '',
-    type: 'regular',
-    status: 'pending'
+}
+
+// 处理模板表单提交
+const handleTemplateSubmit = async (templateData: any) => {
+  try {
+    const record = {
+      patientId: props.patient?.id,
+      templateId: templateData.templateId,
+      title: `随访记录 - ${new Date().toLocaleDateString()}`,
+      content: JSON.stringify(templateData.data),
+      followUpDate: new Date().toISOString(),
+      nextFollowUp: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 默认下次随访时间为一周后
+      status: 'completed',
+      type: 'regular'
+    }
+
+    await medicalApi.createFollowUpRecord(record)
+    ElMessage.success('随访记录创建成功')
+    followUpDialogVisible.value = false
+    loadFollowUpRecords()
+  } catch (error) {
+    console.error('Failed to create follow-up record:', error)
+    ElMessage.error('创建随访记录失败')
   }
 }
 
 // 提交随访记录
 const submitFollowUp = async () => {
-  if (!followUpFormRef.value) return
+  if (!templateFormRef.value) return
   
-  await followUpFormRef.value.validate(async (valid) => {
-    if (valid && props.patient) {
-      try {
-        const record = {
-          ...followUpForm.value,
-          patientId: props.patient.id
-        }
-        await medicalApi.createFollowUpRecord(record)
-        ElMessage.success('随访记录创建成功')
-        followUpDialogVisible.value = false
-        loadFollowUpRecords()
-      } catch (error) {
-        console.error('Failed to create follow-up record:', error)
-        ElMessage.error('创建随访记录失败')
-      }
-    }
-  })
+  const valid = await templateFormRef.value.validateAndSubmit()
+  if (!valid) {
+    ElMessage.warning('请完善表单信息')
+  }
 }
 
 // 医疗记录表单相关
@@ -435,16 +385,24 @@ const submitMedical = async () => {
     }
   })
 }
+
+// 添加tab点击处理函数
+const handleTabClick = (tab: any) => {
+  const element = document.getElementById(tab.props.name)
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth' })
+  }
+}
 </script>
 
 <style scoped>
 .patient-profile {
+  position: relative;
   padding: 24px;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   height: calc(100vh - 120px);
-  overflow-y: auto;
 }
 
 .profile-header {
@@ -454,6 +412,46 @@ const submitMedical = async () => {
   margin-bottom: 32px;
   padding-bottom: 20px;
   border-bottom: 1px solid #ebeef5;
+}
+
+.profile-nav {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 10;
+  border-bottom: 1px solid #ebeef5;
+  margin: 0 -24px;
+  padding: 0 24px;
+}
+
+.profile-content {
+  margin-top: 20px;
+  overflow-y: auto;
+  height: calc(100% - 180px);
+  scroll-behavior: smooth;
+}
+
+.section {
+  padding: 24px 0;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-title {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  color: #303133;
+  font-weight: bold;
 }
 
 .patient-basic {
@@ -473,10 +471,6 @@ const submitMedical = async () => {
   gap: 8px;
 }
 
-.profile-tabs {
-  height: calc(100% - 120px);
-}
-
 .profile-info {
   margin-top: 16px;
 }
@@ -485,30 +479,9 @@ const submitMedical = async () => {
   margin: 0 4px;
 }
 
-.follow-up-records {
-  padding: 20px;
-}
-
+.follow-up-records,
 .medical-records {
-  padding: 20px 0;
-}
-
-:deep(.el-tabs__content) {
-  overflow-y: auto;
-  height: calc(100% - 40px);
-}
-
-.records-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.records-header h3 {
-  margin: 0;
-  font-size: 18px;
-  color: #303133;
+  margin-top: 20px;
 }
 
 .record-meta {
@@ -528,5 +501,24 @@ const submitMedical = async () => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+/* 滚动条样式优化 */
+.profile-content {
+  scrollbar-width: thin;
+  scrollbar-color: #909399 #f4f4f5;
+}
+
+.profile-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.profile-content::-webkit-scrollbar-track {
+  background: #f4f4f5;
+}
+
+.profile-content::-webkit-scrollbar-thumb {
+  background-color: #909399;
+  border-radius: 3px;
 }
 </style> 

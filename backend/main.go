@@ -73,9 +73,36 @@ func main() {
 		authorized.PUT("/followup/:id", handlers.UpdateFollowUpRecord)
 		authorized.DELETE("/followup/:id", handlers.DeleteFollowUpRecord)
 
+		// 随访模板相关路由
+		authorized.GET("/templates", handlers.GetAllTemplates)
+		authorized.GET("/templates/:id", handlers.GetTemplateByID)
+		authorized.POST("/templates", middleware.AdminRequired(), handlers.CreateTemplate)
+		authorized.PUT("/templates/:id", middleware.AdminRequired(), handlers.UpdateTemplate)
+		authorized.DELETE("/templates/:id", middleware.AdminRequired(), handlers.DeleteTemplate)
+		authorized.GET("/templates/default-schema", handlers.GetDefaultSchema)
+		authorized.GET("/templates/category", handlers.GetTemplatesByCategory)
+		authorized.POST("/templates/validate", handlers.ValidateTemplateData)
+
+		// AI代理模板相关路由
+		authorized.GET("/ai-templates", handlers.GetAllAITemplates)
+		authorized.GET("/ai-templates/:id", handlers.GetAITemplateByID)
+		authorized.POST("/ai-templates", middleware.AdminRequired(), handlers.CreateAITemplate)
+		authorized.PUT("/ai-templates/:id", middleware.AdminRequired(), handlers.UpdateAITemplate)
+		authorized.DELETE("/ai-templates/:id", middleware.AdminRequired(), handlers.DeleteAITemplate)
+		authorized.POST("/ai-templates/:id/audit", middleware.AdminRequired(), handlers.AuditAITemplate)
+		authorized.GET("/ai-templates/category", handlers.GetAITemplatesByCategory)
+
+		// AI建议评价相关路由
+		authorized.POST("/ai-suggestions/:id/feedback", handlers.CreateAISuggestionFeedback)
+		authorized.PUT("/ai-suggestions/feedback/:id", handlers.UpdateAISuggestionFeedback)
+		authorized.GET("/ai-suggestions/feedback", handlers.GetAISuggestionFeedbacks)
+		authorized.POST("/ai-suggestions/feedback/:id/review", middleware.AdminRequired(), handlers.ReviewAISuggestionFeedback)
+		authorized.GET("/ai-suggestions/feedback/stats", handlers.GetFeedbackStats)
+
 		// 医疗记录相关路由
 		authorized.GET("/patients/:id/medical", handlers.GetMedicalRecords)
 		authorized.POST("/medical", handlers.CreateMedicalRecord)
+
 		authorized.PUT("/medical/:id", handlers.UpdateMedicalRecord)
 		authorized.DELETE("/medical/:id", handlers.DeleteMedicalRecord)
 	}

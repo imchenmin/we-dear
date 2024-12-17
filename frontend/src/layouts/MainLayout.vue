@@ -22,6 +22,9 @@
               <el-icon><Monitor/></el-icon>
               科室管理
             </el-menu-item>
+            <el-menu-item index="/template-management">
+            <el-icon><Document /></el-icon>随访模板管理
+            </el-menu-item>
           </div>
 
           <!-- 右侧用户区域 -->

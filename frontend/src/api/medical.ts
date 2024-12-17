@@ -35,4 +35,15 @@ export const medicalApi = {
   deleteMedicalRecord(id: string) {
     return request.delete(`/medical/${id}`)
   }
+}
+
+// 添加模板相关接口
+export const templateApi = {
+  validateTemplateData(templateId: string, data: any) {
+    return request.post(`/templates/validate?templateId=${templateId}`, data)
+  },
+
+  getDefaultTemplateSchema() {
+    return request.get('/templates/default-schema')
+  }
 } 

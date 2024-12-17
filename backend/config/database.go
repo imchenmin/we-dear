@@ -57,6 +57,9 @@ func InitDB() {
 		&models.Department{},
 		&models.Attachment{},
 		&models.FollowUpRecord{},
+		&models.AISuggestionFeedback{},
+		&models.AIAgentTemplate{},
+		&models.FollowUpTemplate{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)

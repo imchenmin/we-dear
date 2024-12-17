@@ -82,3 +82,67 @@ const (
 	AttachmentTypeVideo  = "video"  // 视频
 	AttachmentTypeOther  = "other"  // 其他
 )
+
+// 模板状态
+const (
+	TemplateStatusEnabled  = "enabled"  // 启用
+	TemplateStatusDisabled = "disabled" // 禁用
+)
+
+// 随访模板分类
+const (
+	TemplateCategoryGeneral   = "general"   // 通用随访
+	TemplateCategoryDiabetes  = "diabetes"  // 糖尿病随访
+	TemplateCategoryCardiac   = "cardiac"   // 心脏病随访
+	TemplateCategoryPediatric = "pediatric" // 儿科随访
+	TemplateCategoryElderly   = "elderly"   // 老年人随访
+)
+
+// AI代理模板分类
+const (
+	AIAgentCategoryGeneral     = "general"     // 通用模板
+	AIAgentCategoryDiabetes    = "diabetes"    // 糖尿病
+	AIAgentCategoryCardiac     = "cardiac"     // 心脏病
+	AIAgentCategoryPediatric   = "pediatric"   // 儿科
+	AIAgentCategoryGeriatric   = "geriatric"   // 老年科
+	AIAgentCategoryOncology    = "oncology"    // 肿瘤科
+	AIAgentCategoryPsychiatric = "psychiatric" // 精神科
+)
+
+// AI代理模板审核状态
+const (
+	AIAgentAuditStatusPending  = "pending"  // 待审核
+	AIAgentAuditStatusApproved = "approved" // 已通过
+	AIAgentAuditStatusRejected = "rejected" // 已拒绝
+)
+
+// AI代理模板状态
+const (
+	AIAgentStatusDraft    = "draft"    // 草稿
+	AIAgentStatusEnabled  = "enabled"  // 已启用
+	AIAgentStatusDisabled = "disabled" // 已禁用
+	AIAgentStatusArchived = "archived" // 已归档
+)
+
+// AI建议评价状态
+const (
+	AISuggestionFeedbackStatusPending  = "pending"  // 待审核
+	AISuggestionFeedbackStatusApproved = "approved" // 已通过
+	AISuggestionFeedbackStatusRejected = "rejected" // 已拒绝
+)
+
+// AI建议评价标签
+const (
+	AISuggestionFeedbackTagHelpful          = "helpful"            // 有帮助
+	AISuggestionFeedbackTagProfessional     = "professional"       // 专业
+	AISuggestionFeedbackTagEasyToUnderstand = "easy_to_understand" // 易懂
+	AISuggestionFeedbackTagAccurate         = "accurate"           // 准确
+	AISuggestionFeedbackTagInnovative       = "innovative"         // 创新
+	AISuggestionFeedbackTagTimely           = "timely"             // 及时
+)
+
+// AI建议评价类型
+const (
+	AISuggestionFeedbackRatingLike    = 1  // 点赞
+	AISuggestionFeedbackRatingDislike = -1 // 踩
+)

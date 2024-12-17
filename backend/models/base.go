@@ -127,16 +127,62 @@ type Attachment struct {
 	UploadedBy  string `json:"uploadedBy"`  // 上传者ID
 }
 
+// FollowUpTemplate 随访模板
+type FollowUpTemplate struct {
+	BaseModel
+	Name        string         `json:"name" gorm:"index"`             // 模板名称
+	Description string         `json:"description"`                   // 模板描述
+	Schema      string         `json:"schema" gorm:"type:text"`       // 模板格式（JSON Schema）
+	Version     string         `json:"version"`                       // 版本号
+	Status      string         `json:"status"`                        // 状态（启用/禁用）
+	CreatedBy   string         `json:"createdBy"`                     // 创建人ID
+	UpdatedBy   string         `json:"updatedBy"`                     // 最后修改人ID
+	Categories  pq.StringArray `json:"categories" gorm:"type:text[]"` // 适用分类
+}
+
 // FollowUpRecord 随访记录
 type FollowUpRecord struct {
 	BaseModel
 	PatientID    string    `json:"patientId" gorm:"index"`         // 患者ID
 	DoctorID     string    `json:"doctorId" gorm:"index"`          // 医生ID
+	TemplateID   string    `json:"templateId"`                     // 使用的模板ID
 	Title        string    `json:"title"`                          // 随访标题
-	Content      string    `json:"content"`                        // 随访内容
+	Content      string    `json:"content"`                        // 随访内容（根据模板填写的JSON数据）
 	FollowUpDate time.Time `json:"followUpDate"`                   // 随访日期
 	NextFollowUp time.Time `json:"nextFollowUp"`                   // 下次随访日期
 	Status       string    `json:"status"`                         // 状态(completed/pending)
 	Type         string    `json:"type"`                           // 随访类型(常规/特殊)
 	Attachments  []string  `json:"attachments" gorm:"type:text[]"` // 附件列表
+}
+
+// AIAgentTemplate AI代理模板
+type AIAgentTemplate struct {
+	BaseModel
+	Name        string         `json:"name" gorm:"index"`             // 模板名称
+	Version     string         `json:"version"`                       // 版本号
+	Description string         `json:"description"`                   // 模板描述
+	Content     string         `json:"content" gorm:"type:text"`      // 模板内容（JSON格式）
+	Categories  pq.StringArray `json:"categories" gorm:"type:text[]"` // 适用分类
+	Status      string         `json:"status"`                        // 状态（启用/禁用）
+	CreatedBy   string         `json:"createdBy"`                     // 创建人ID
+	UpdatedBy   string         `json:"updatedBy"`                     // 最后修改人ID
+	LastAuditBy string         `json:"lastAuditBy"`                   // 最后审核人ID
+	LastAuditAt time.Time      `json:"lastAuditAt"`                   // 最后审核时间
+	AuditStatus string         `json:"auditStatus"`                   // 审核状态
+	AuditNotes  string         `json:"auditNotes"`                    // 审核备注
+}
+
+// AISuggestionFeedback AI建议评价
+type AISuggestionFeedback struct {
+	BaseModel
+	SuggestionID string    `json:"suggestionId" gorm:"index"` // 关联的AI建议ID
+	PatientID    string    `json:"patientId" gorm:"index"`    // 患者ID
+	Rating       int       `json:"rating"`                    // 评价 (1: 点赞, -1: 踩)
+	Comment      string    `json:"comment"`                   // 评论内容
+	Tags         []string  `json:"tags" gorm:"type:text[]"`   // 标签（例如：有帮助、专业、易懂等）
+	CreatedBy    string    `json:"createdBy"`                 // 评价人ID
+	UpdatedBy    string    `json:"updatedBy"`                 // 最后修改人ID
+	ReviewedBy   string    `json:"reviewedBy"`                // 审核人ID
+	ReviewedAt   time.Time `json:"reviewedAt"`                // 审核时间
+	Status       string    `json:"status"`                    // 状态（待审核/已通过/已拒绝）
 }

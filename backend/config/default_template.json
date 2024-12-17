@@ -1,0 +1,211 @@
+{
+  "title": "慢性病随访记录模板",
+  "description": "用于记录慢性病患者的定期随访情况",
+  "type": "object",
+  "properties": {
+    "basicInfo": {
+      "type": "object",
+      "title": "基本信息",
+      "required": ["followUpDate", "followUpType", "followUpMethod"],
+      "properties": {
+        "followUpDate": {
+          "type": "string",
+          "title": "随访日期",
+          "format": "date"
+        },
+        "followUpType": {
+          "type": "string",
+          "title": "随访类型",
+          "enum": ["常规随访", "特殊随访", "复诊随访"]
+        },
+        "followUpMethod": {
+          "type": "string",
+          "title": "随访方式",
+          "enum": ["门诊", "电话", "家访", "视频"]
+        },
+        "nextFollowUpDate": {
+          "type": "string",
+          "title": "下次随访日期",
+          "format": "date"
+        }
+      }
+    },
+    "vitalSigns": {
+      "type": "object",
+      "title": "生命体征",
+      "properties": {
+        "bloodPressure": {
+          "type": "object",
+          "title": "血压",
+          "properties": {
+            "systolic": {
+              "type": "number",
+              "title": "收缩压",
+              "minimum": 0,
+              "maximum": 300,
+              "unit": "mmHg"
+            },
+            "diastolic": {
+              "type": "number",
+              "title": "舒张压",
+              "minimum": 0,
+              "maximum": 200,
+              "unit": "mmHg"
+            }
+          }
+        },
+        "heartRate": {
+          "type": "number",
+          "title": "心率",
+          "minimum": 0,
+          "maximum": 200,
+          "unit": "次/分"
+        },
+        "temperature": {
+          "type": "number",
+          "title": "体温",
+          "minimum": 35,
+          "maximum": 42,
+          "unit": "℃"
+        },
+        "weight": {
+          "type": "number",
+          "title": "体重",
+          "minimum": 0,
+          "maximum": 200,
+          "unit": "kg"
+        }
+      }
+    },
+    "symptoms": {
+      "type": "array",
+      "title": "症状",
+      "items": {
+        "type": "string",
+        "enum": [
+          "头痛",
+          "头晕",
+          "乏力",
+          "胸闷",
+          "心悸",
+          "呼吸困难",
+          "恶心",
+          "呕吐",
+          "腹痛",
+          "其他"
+        ]
+      }
+    },
+    "medicationCompliance": {
+      "type": "object",
+      "title": "用药依从性",
+      "properties": {
+        "compliance": {
+          "type": "string",
+          "title": "服药依从性",
+          "enum": ["规律服用", "间断服用", "未按医嘱服用", "自行停药"]
+        },
+        "sideEffects": {
+          "type": "string",
+          "title": "不良反应"
+        },
+        "medications": {
+          "type": "array",
+          "title": "当前用药",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "title": "药品名称"
+              },
+              "dosage": {
+                "type": "string",
+                "title": "用药剂量"
+              },
+              "frequency": {
+                "type": "string",
+                "title": "用药频次",
+                "enum": ["每日一次", "每日两次", "每日三次", "需要时服用"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "lifestyle": {
+      "type": "object",
+      "title": "生活方式",
+      "properties": {
+        "diet": {
+          "type": "string",
+          "title": "饮食情况",
+          "enum": ["规律", "较规律", "不规律"]
+        },
+        "exercise": {
+          "type": "object",
+          "title": "运动情况",
+          "properties": {
+            "frequency": {
+              "type": "string",
+              "title": "运动频率",
+              "enum": ["每天", "每周3-5次", "每周1-2次", "几乎不运动"]
+            },
+            "duration": {
+              "type": "number",
+              "title": "每次运动时长",
+              "minimum": 0,
+              "maximum": 300,
+              "unit": "分钟"
+            }
+          }
+        },
+        "smoking": {
+          "type": "object",
+          "title": "吸烟情况",
+          "properties": {
+            "status": {
+              "type": "string",
+              "title": "是否吸烟",
+              "enum": ["从不吸烟", "已戒烟", "偶尔吸烟", "经常吸烟"]
+            },
+            "amount": {
+              "type": "number",
+              "title": "日吸烟量",
+              "minimum": 0,
+              "unit": "支/天"
+            }
+          }
+        }
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "title": "评估与建议",
+      "properties": {
+        "condition": {
+          "type": "string",
+          "title": "病情评估",
+          "enum": ["稳定", "好转", "加重", "危重"]
+        },
+        "riskLevel": {
+          "type": "string",
+          "title": "风险等级",
+          "enum": ["低风险", "中风险", "高风险"]
+        },
+        "suggestions": {
+          "type": "array",
+          "title": "医生建议",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "string",
+          "title": "备注",
+          "format": "textarea"
+        }
+      }
+    }
+  }
+} 

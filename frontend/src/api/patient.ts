@@ -1,4 +1,4 @@
-import type { Patient, Message, AISuggestion } from '@/types'
+import type { Patient, Message, AISuggestion, MessageFeedback, FeedbackStats } from '@/types'
 import { request } from '@/utils/request'
 
 export const patientApi = {
@@ -48,5 +48,36 @@ export const patientApi = {
     return request.get(`/chat/${patientId}/suggestions`, {
       params: { messageId }
     })
+  },
+
+  // 创建消息评价
+  async createMessageFeedback(suggestionId: string, data: Partial<MessageFeedback>): Promise<MessageFeedback> {
+    const response = await request.post(`/ai-suggestions/${suggestionId}/feedback`, {
+      ...data,
+      suggestionId
+    })
+    return response.data
+  },
+
+  // 更新消息评价
+  async updateMessageFeedback(feedbackId: string, data: Partial<MessageFeedback>): Promise<MessageFeedback> {
+    const response = await request.put(`/ai-suggestions/feedback/${feedbackId}`, data)
+    return response.data
+  },
+
+  // 获取消息评价列表
+  async getMessageFeedbacks(suggestionId: string): Promise<MessageFeedback[]> {
+    const response = await request.get(`/ai-suggestions/feedback`, {
+      params: { suggestionId }
+    })
+    return response.data
+  },
+
+  // 获取消息评价统计
+  async getMessageFeedbackStats(suggestionId: string): Promise<FeedbackStats> {
+    const response = await request.get(`/ai-suggestions/feedback/stats`, {
+      params: { suggestionId }
+    })
+    return response.data
   }
 } 
