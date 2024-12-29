@@ -1,47 +1,53 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"we-dear/models"
-	"we-dear/services"
+	"time"
+	"we-dear/config"
+
+	deepseek "github.com/cohesion-org/deepseek-go"
 )
 
 func main() {
-	// 测试患者数据
-	testPatient := &models.Patient{
-		Name:            "测试患者",
-		Gender:          "男",
-		Age:             30,
-		BloodType:       "A",
-		Allergies:       []string{"青霉素"},
-		ChronicDiseases: []string{"高血压"},
-	}
+	// 初始化配置
+	config.Init()
 
-	// 测试消息
-	testMessage := "我最近经常头痛，该怎么办？"
+	// 初始化 Deepseek 客户端
+	client := deepseek.NewClient(config.GlobalConfig.AI.DeepseekKey)
 
-	// 测试历史消息
-	testHistory := []models.Message{
+	// 构建测试消息
+	messages := []deepseek.ChatCompletionMessage{
 		{
-			Role:    models.MessageRolePatient,
-			Content: "医生，我最近睡眠不好",
+			Role:    "system",
+			Content: "你是一位专业的医生，请用专业且易懂的语言回答病人的问题。",
+		},
+		{
+			Role:    "user",
+			Content: "我最近血压一直在波动，早上测了收缩压160，舒张压95，我现在在服用络活喜，需要调整用药吗？",
 		},
 	}
 
-	// 初始化AI服务
-	aiService := services.NewAIService()
+	// 创建聊天请求
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	// 生成回复
-	suggestion, err := aiService.GenerateResponse(testPatient, "test_msg_001", testMessage, testHistory)
+	resp, err := client.CreateChatCompletion(
+		ctx,
+		&deepseek.ChatCompletionRequest{
+			Model:    deepseek.DeepSeekChat,
+			Messages: messages,
+		},
+	)
+
 	if err != nil {
-		log.Fatalf("生成AI回复失败: %v", err)
+		log.Fatalf("Deepseek API 调用失败: %v", err)
 	}
 
-	// 打印结果
-	fmt.Printf("\n=== AI回复测试结果 ===\n")
-	fmt.Printf("建议内容：\n%s\n", suggestion.Content)
-	fmt.Printf("置信度：%.2f\n", suggestion.Confidence)
-	fmt.Printf("类别：%s\n", suggestion.Category)
-	fmt.Printf("优先级：%d\n", suggestion.Priority)
+	// 打印响应
+	fmt.Printf("\n=== Deepseek 测试结果 ===\n")
+	fmt.Printf("问题: %s\n", messages[1].Content)
+	fmt.Printf("\n回复:\n%s\n", resp.Choices[0].Message.Content)
+	fmt.Printf("===========================\n")
 }

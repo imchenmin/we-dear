@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,8 +18,16 @@ import (
 )
 
 var (
-	aiService = services.NewAIService()
+	aiService *services.AIService
+	once      sync.Once
 )
+
+func getAIService() *services.AIService {
+	once.Do(func() {
+		aiService = services.NewAIService()
+	})
+	return aiService
+}
 
 // 通用的消息请求结构
 type MessageRequest struct {
@@ -231,7 +240,7 @@ func processAIResponse(messageID string, patientID string, content string, patie
 	}
 
 	// 生成AI建议
-	suggestion, err := aiService.GenerateResponse(patient, messageID, content, messages)
+	suggestion, err := getAIService().GenerateResponse(patient, messageID, content, messages)
 	if err != nil {
 		log.Printf("生成AI建议失败: %v", err)
 		return
@@ -259,4 +268,8 @@ func GetAISuggestions(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, suggestions)
+}
+
+func InitHandlers() {
+	aiService = services.NewAIService()
 }

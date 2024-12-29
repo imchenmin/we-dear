@@ -27,8 +27,11 @@ const (
 4. 以医生的口吻去回答患者`
 )
 
-// AI配置选项
+// AIConfig AI配置选项
 type AIConfig struct {
+	Provider    string  // AI提供商：openai 或 deepseek
+	OpenAIKey   string  // OpenAI API密钥
+	DeepseekKey string  // Deepseek API密钥
 	Model       string  // 使用的模型
 	Temperature float32 // 温度参数
 	MaxTokens   int     // 最大token数
@@ -37,7 +40,8 @@ type AIConfig struct {
 
 // 默认AI配置
 var DefaultAIConfig = AIConfig{
-	Model:       "gpt-3.5-turbo",
+	Provider:    "deepseek",
+	Model:       "deepseek-chat",
 	Temperature: 0.7,
 	MaxTokens:   2000,
 	TopP:        1.0,

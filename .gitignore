@@ -1,1 +1,6 @@
 frontend/.vscode/extensions.json
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local

@@ -11,18 +11,49 @@ import (
 	"we-dear/storage"
 
 	openai "github.com/sashabaranov/go-openai"
+	deepseek "github.com/cohesion-org/deepseek-go"
 )
 
 type AIService struct {
-	client *openai.Client
+	openaiClient   *openai.Client
+	deepseekClient *deepseek.Client
+	provider       string
 }
 
 func NewAIService() *AIService {
-	client := openai.NewClient("sk-proj-efqvozACpCMXtMeEBWm9T3BlbkFJcQ0YiNNK1GSk5Iil7Dyg")
-	fmt.Println(config.GlobalConfig.OpenAIKey)
-	return &AIService{
-		client: client,
+	provider := config.GlobalConfig.AI.Provider
+	var openaiClient *openai.Client
+	var deepseekClient *deepseek.Client
+
+	// 添加更详细的日志
+	log.Printf("初始化 AIService:")
+	log.Printf("GlobalConfig: %+v", config.GlobalConfig)
+	log.Printf("AI提供商: %s", provider)
+	log.Printf("Deepseek Key长度: %d", len(config.GlobalConfig.AI.DeepseekKey))
+
+	if provider == "openai" {
+		openaiClient = openai.NewClient(config.GlobalConfig.AI.OpenAIKey)
+		log.Printf("已初始化 OpenAI 客户端")
+	} else if provider == "deepseek" {
+		if config.GlobalConfig.AI.DeepseekKey == "" {
+			log.Fatal("Deepseek API key未设置")
+		}
+		deepseekClient = deepseek.NewClient(config.GlobalConfig.AI.DeepseekKey)
+		log.Printf("已初始化 Deepseek 客户端")
+	} else {
+		log.Printf("警告：未知的 AI 提供商: %s", provider)
 	}
+
+	service := &AIService{
+		openaiClient:   openaiClient,
+		deepseekClient: deepseekClient,
+		provider:       provider,
+	}
+	
+	// 添加服务初始化完成的日志
+	log.Printf("AIService初始化完成: %+v", service)
+	
+	return service
 }
 
 func (s *AIService) ParseFollowUpRecords(patientID string, maxRecords int) (string, error) {
@@ -137,33 +168,21 @@ func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, 
 		Content: currentMessage,
 	})
 
-	// 创建请求上下文（带超时）
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	// 根据不同的供应商调用不同的 API
+	var aiContent string
+	var genErr error
 
-	// 发送请求
-	resp, err := s.client.CreateChatCompletion(
-		ctx,
-		openai.ChatCompletionRequest{
-			Model:       config.DefaultAIConfig.Model,
-			Messages:    messages,
-			Temperature: config.DefaultAIConfig.Temperature,
-			MaxTokens:   config.DefaultAIConfig.MaxTokens,
-			TopP:        config.DefaultAIConfig.TopP,
-		},
-	)
+	if s.provider == "openai" {
+		aiContent, genErr = s.generateOpenAIResponse(messages)
+	} else if s.provider == "deepseek" {
+		aiContent, genErr = s.generateDeepseekResponse(messages)
+	}
+	log.Printf("s.provider: %s", s.provider)
 
-	if err != nil {
-		log.Printf("OpenAI API 错误: %v\n", err)
-		return nil, fmt.Errorf("OpenAI API error: %v", err)
+	if genErr != nil {
+		return nil, genErr
 	}
 
-	if len(resp.Choices) == 0 {
-		log.Printf("AI 未返回响应\n")
-		return nil, fmt.Errorf("no response from AI")
-	}
-
-	aiContent := resp.Choices[0].Message.Content
 	log.Printf("\n=== AI 响应 ===\n%s\n=============\n", aiContent)
 
 	now := time.Now()
@@ -185,6 +204,78 @@ func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, 
 	}
 
 	return suggestion, nil
+}
+
+// 添加 OpenAI 响应生成方法
+func (s *AIService) generateOpenAIResponse(messages []openai.ChatCompletionMessage) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	resp, err := s.openaiClient.CreateChatCompletion(
+		ctx,
+		openai.ChatCompletionRequest{
+			Model:       config.GlobalConfig.AI.Model,
+			Messages:    messages,
+			Temperature: config.DefaultAIConfig.Temperature,
+			MaxTokens:   config.DefaultAIConfig.MaxTokens,
+			TopP:        config.DefaultAIConfig.TopP,
+		},
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Choices[0].Message.Content, nil
+}
+
+// 添加 Deepseek 响应生成方法
+func (s *AIService) generateDeepseekResponse(messages []openai.ChatCompletionMessage) (string, error) {
+	// 添加日志，查看转换后的消息
+	log.Printf("Deepseek请求消息: %+v", messages)
+	
+	deepseekMessages := make([]deepseek.ChatCompletionMessage, len(messages))
+	for i, msg := range messages {
+		role := deepseek.ChatMessageRoleUser
+		switch msg.Role {
+		case openai.ChatMessageRoleSystem:
+			role = "system"
+		case openai.ChatMessageRoleAssistant:
+			role = "assistant"
+		case openai.ChatMessageRoleUser:
+			role = "user"
+		}
+		
+		deepseekMessages[i] = deepseek.ChatCompletionMessage{
+			Role:    role,
+			Content: msg.Content,
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// 添加更详细的错误处理
+	resp, err := s.deepseekClient.CreateChatCompletion(
+		ctx,
+		&deepseek.ChatCompletionRequest{
+			Model:    deepseek.DeepSeekChat,
+				Messages: deepseekMessages,
+				Temperature: 0.7,  // 添加温度参数
+				MaxTokens: 2000,   // 添加最大token限制
+		},
+	)
+
+	if err != nil {
+		log.Printf("Deepseek API错误: %v", err)
+		return "", fmt.Errorf("deepseek API调用失败: %w", err)
+	}
+
+	if resp == nil || len(resp.Choices) == 0 {
+		return "", fmt.Errorf("deepseek返回了空响应")
+	}
+
+	return resp.Choices[0].Message.Content, nil
 }
 
 // buildContext 构建上下文信息
