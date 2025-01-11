@@ -22,6 +22,9 @@ func GetMedicalStorage() *MedicalStorage {
 	return medicalInstance
 }
 
+
+
+
 // 获取患者的所有随访记录
 func (s *MedicalStorage) GetFollowUpRecords(patientID string) ([]models.FollowUpRecord, error) {
 	var records []models.FollowUpRecord

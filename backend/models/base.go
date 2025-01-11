@@ -186,3 +186,15 @@ type AISuggestionFeedback struct {
 	ReviewedAt   time.Time `json:"reviewedAt"`                // 审核时间
 	Status       string    `json:"status"`                    // 状态（待审核/已通过/已拒绝）
 }
+
+// PhysiologicalData 生理数据记录
+type PhysiologicalData struct {
+	BaseModel
+	PatientID  string    `json:"patientId" gorm:"index"`  // 患者ID
+	Type       string    `json:"type" gorm:"index"`       // 数据类型(blood_pressure/blood_sugar等)
+	Value      string    `json:"value"`                   // 数据值
+	MeasuredAt time.Time `json:"measuredAt"`              // 测量时间
+	Notes      string    `json:"notes"`                   // 备注
+	Source     string    `json:"source"`                  // 数据来源(手动录入/设备上传/AI提取)
+	DeviceInfo string    `json:"deviceInfo"`              // 设备信息(如果是设备上传)
+}

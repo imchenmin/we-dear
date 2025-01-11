@@ -102,9 +102,14 @@ func main() {
 		// 医疗记录相关路由
 		authorized.GET("/patients/:id/medical", handlers.GetMedicalRecords)
 		authorized.POST("/medical", handlers.CreateMedicalRecord)
-
 		authorized.PUT("/medical/:id", handlers.UpdateMedicalRecord)
 		authorized.DELETE("/medical/:id", handlers.DeleteMedicalRecord)
+
+		// 生理数据相关路由
+		authorized.GET("/patients/:id/physiological", handlers.GetPhysiologicalData)
+		authorized.POST("/physiological", handlers.CreatePhysiologicalData)
+		authorized.PUT("/physiological/:id", handlers.UpdatePhysiologicalData)
+		authorized.DELETE("/physiological/:id", handlers.DeletePhysiologicalData)
 	}
 
 	log.Printf("Server starting on http://localhost:8080")

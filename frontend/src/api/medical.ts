@@ -46,4 +46,23 @@ export const templateApi = {
   getDefaultTemplateSchema() {
     return request.get('/templates/default-schema')
   }
-} 
+}
+
+export const physiologicalApi = {
+  // 生理数据相关 API
+  getPhysiologicalData(patientId: string) {
+    return request.get(`/patients/${patientId}/physiological`)
+  },
+
+  createPhysiologicalData(data: any) {
+    return request.post('/physiological', data)
+  },
+
+  updatePhysiologicalData(id: string, data: any) {
+    return request.put(`/physiological/${id}`, data)
+  },
+
+  deletePhysiologicalData(id: string) {
+    return request.delete(`/physiological/${id}`)
+  } 
+}

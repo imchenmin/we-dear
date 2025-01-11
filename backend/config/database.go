@@ -60,6 +60,7 @@ func InitDB() {
 		&models.AISuggestionFeedback{},
 		&models.AIAgentTemplate{},
 		&models.FollowUpTemplate{},
+		&models.PhysiologicalData{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)

@@ -245,7 +245,12 @@ func processAIResponse(messageID string, patientID string, content string, patie
 		log.Printf("生成AI建议失败: %v", err)
 		return
 	}
-
+	// 通过ai提取患者问题中的生理数据（血糖，血压）
+	// 尝试从患者消息中提取生理数据
+	if err := getAIService().ExtractPhysiologicalData(patientID, content); err != nil {
+		log.Printf("提取生理数据失败: %v", err)
+		// 继续处理,不中断流程
+	}
 	// 保存AI建议
 	if err := db.Create(&suggestion).Error; err != nil {
 		log.Printf("保存AI建议失败: %v", err)

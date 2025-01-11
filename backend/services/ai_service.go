@@ -9,6 +9,8 @@ import (
 	"we-dear/config"
 	"we-dear/models"
 	"we-dear/storage"
+	"we-dear/utils"
+	"encoding/json"
 
 	openai "github.com/sashabaranov/go-openai"
 	deepseek "github.com/cohesion-org/deepseek-go"
@@ -101,7 +103,7 @@ func (s *AIService) ParseMedicalRecords(patientID string, maxRecords int) (strin
 	return medicalRecordsStr, nil
 }
 
-// GenerateResponse 使用 OpenAI 生成回复建议
+// GenerateResponse 生成回复建议
 func (s *AIService) GenerateResponse(patient *models.Patient, messageID string, currentMessage string, messageHistory []models.Message) (*models.AISuggestion, error) {
 	medicalRecordsStr, err := s.ParseMedicalRecords(patient.ID, 5)
 	if err != nil {
@@ -297,4 +299,135 @@ func buildContext(history []models.Message) string {
 	}
 
 	return contextBuilder.String()
+}
+
+// 从聊天记录中提取生理数据（血压，血糖）
+// ExtractPhysiologicalData 从聊天记录中提取生理数据
+func (s *AIService) ExtractPhysiologicalData(patientID string, messageContent string) error {
+	// 获取当前时间
+	currentTime := time.Now().Format("2006-01-02 15:04:05")
+
+	// 构建提示信息
+	systemPrompt := fmt.Sprintf(`你是一个医疗数据分析助手。请从患者的消息中提取血压、血糖数据和测量时间
+（请注意患者聊天记录中说明的时间，如果是相对时间需要和当前时间进行比较）。
+如果存在多个数据，请提取最新的一组。请按以下JSON格式返回:
+{
+    "bloodPressure": {
+        "systolic": 收缩压数值(int),
+        "diastolic": 舒张压数值(int),
+        "measuredAt": "测量时间(YYYY-MM-DD HH:mm:ss格式)",
+        "hasData": true/false
+    },
+    "bloodSugar": {
+        "value": 血糖值(float),
+        "type": "空腹/餐后/随机",
+        "measuredAt": "测量时间(YYYY-MM-DD HH:mm:ss格式)", 
+        "hasData": true/false
+    }
+}
+如果消息中未明确提到测量时间，则使用当前时间: %s。`, currentTime)
+
+	messages := []deepseek.ChatCompletionMessage{
+		{
+			Role:    "system",
+			Content: systemPrompt,
+		},
+		{
+			Role:    "user",
+			Content: messageContent,
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// 调用AI提取数据
+	resp, err := s.deepseekClient.CreateChatCompletion(
+		ctx,
+		&deepseek.ChatCompletionRequest{
+			Model:       deepseek.DeepSeekChat,
+			Messages:    messages,
+			Temperature: 0.1, // 降低温度以获得更确定的结果
+		},
+	)
+
+	if err != nil {
+		return fmt.Errorf("AI提取生理数据失败: %w", err)
+	}
+
+	if len(resp.Choices) == 0 {
+		return fmt.Errorf("AI返回空响应")
+	}
+
+	// 解析AI返回的JSON
+	var result struct {
+		BloodPressure struct {
+			Systolic   int     `json:"systolic"`
+			Diastolic  int     `json:"diastolic"`
+			MeasuredAt string  `json:"measuredAt"`
+			HasData    bool    `json:"hasData"`
+		} `json:"bloodPressure"`
+		BloodSugar struct {
+			Value      float64 `json:"value"`
+			Type       string  `json:"type"`
+			MeasuredAt string  `json:"measuredAt"`
+			HasData    bool    `json:"hasData"`
+		} `json:"bloodSugar"`
+	}
+
+	if err := json.Unmarshal([]byte(resp.Choices[0].Message.Content), &result); err != nil {
+		return fmt.Errorf("解析AI响应失败: %w", err)
+	}
+
+	// 保存有效的血压数据
+	if result.BloodPressure.HasData {
+		measuredAt, err := time.Parse("2006-01-02 15:04:05", result.BloodPressure.MeasuredAt)
+		if err != nil {
+			measuredAt = time.Now() // 如果解析失败，使用当前时间
+		}
+
+		bloodPressure := &models.PhysiologicalData{
+			BaseModel: models.BaseModel{
+				ID:        utils.GenerateID(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			PatientID:  patientID,
+			Type:      "blood_pressure",
+			Value:     fmt.Sprintf("%d/%d", result.BloodPressure.Systolic, result.BloodPressure.Diastolic),
+			MeasuredAt: measuredAt,
+			Source:    "ai_extract",
+			Notes:     "从聊天记录中AI提取的血压数据",
+		}
+		if err := storage.GetPhysiologicalDataStorage().Create(bloodPressure); err != nil {
+			return fmt.Errorf("保存血压数据失败: %w", err)
+		}
+	}
+
+	// 保存有效的血糖数据
+	if result.BloodSugar.HasData {
+		measuredAt, err := time.Parse("2006-01-02 15:04:05", result.BloodSugar.MeasuredAt)
+		if err != nil {
+			measuredAt = time.Now() // 如果解析失败，使用当前时间
+		}
+
+		bloodSugar := &models.PhysiologicalData{
+			BaseModel: models.BaseModel{
+				ID:        utils.GenerateID(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			PatientID:  patientID,
+			Type:      "blood_sugar",
+			Value:     fmt.Sprintf("%.1f-%s", result.BloodSugar.Value, result.BloodSugar.Type),
+			MeasuredAt: measuredAt,
+			Source:    "ai_extract",
+			Notes:     "从聊天记录中AI提取的血糖数据",
+		}
+		if err := storage.GetPhysiologicalDataStorage().Create(bloodSugar); err != nil {
+			return fmt.Errorf("保存血糖数据失败: %w", err)
+		}
+	}
+
+	return nil
 }

@@ -17,6 +17,7 @@
         <el-tab-pane label="基本信息" name="basic" />
         <el-tab-pane label="随访记录" name="followup" />
         <el-tab-pane label="医疗记录" name="medical" />
+        <el-tab-pane label="生理数据" name="physiological" />
       </el-tabs>
     </div>
     
@@ -118,6 +119,52 @@
           </el-table>
         </div>
       </div>
+
+      <!-- 生理数据部分 -->
+      <div id="physiological" class="section">
+        <div class="section-header">
+          <h3 class="section-title">生理数据</h3>
+          <el-button type="primary" @click="showAddPhysiological">
+            <el-icon><Plus /></el-icon>新增数据
+          </el-button>
+        </div>
+        <div class="physiological-data">
+          <el-tabs v-model="activeDataType">
+            <el-tab-pane label="血压" name="blood_pressure">
+              <!-- 血压图表 -->
+              <div class="chart-container">
+                <v-chart class="chart" :option="bloodPressureChartOption" autoresize />
+              </div>
+              <el-table :data="physiologicalData.filter(d => d.type === 'blood_pressure')" style="width: 100%; margin-top: 20px;">
+                <el-table-column prop="measuredAt" label="测量时间" width="180">
+                  <template #default="scope">
+                    {{ formatDate(scope.row.measuredAt) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="value" label="数值" />
+                <el-table-column prop="source" label="数据来源" width="120" />
+                <el-table-column prop="notes" label="备注" />
+              </el-table>
+            </el-tab-pane>
+            <el-tab-pane label="血糖" name="blood_sugar">
+              <!-- 血糖图表 -->
+              <div class="chart-container">
+                <v-chart class="chart" :option="bloodSugarChartOption" autoresize />
+              </div>
+              <el-table :data="physiologicalData.filter(d => d.type === 'blood_sugar')" style="width: 100%; margin-top: 20px;">
+                <el-table-column prop="measuredAt" label="测量时间" width="180">
+                  <template #default="scope">
+                    {{ formatDate(scope.row.measuredAt) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="value" label="数值" />
+                <el-table-column prop="source" label="数据来源" width="120" />
+                <el-table-column prop="notes" label="备注" />
+              </el-table>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+      </div>
     </div>
 
     <!-- 弹窗部分保持不变 -->
@@ -212,17 +259,95 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 生理数据弹窗 -->
+    <el-dialog v-model="physiologicalDialogVisible" title="新增生理数据" width="50%">
+      <el-form
+        ref="physiologicalFormRef"
+        :model="physiologicalForm"
+        :rules="physiologicalRules"
+        label-width="100px"
+      >
+        <el-form-item label="数据类型" prop="type">
+          <el-select v-model="physiologicalForm.type" placeholder="请选择数据类型">
+            <el-option label="血压" value="blood_pressure" />
+            <el-option label="血糖" value="blood_sugar" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="数值" prop="value">
+          <el-input v-model="physiologicalForm.value" placeholder="请输入数值">
+            <template #append>
+              {{ physiologicalForm.type === 'blood_pressure' ? 'mmHg' : 'mmol/L' }}
+            </template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="测量时间" prop="measuredAt">
+          <el-date-picker
+            v-model="physiologicalForm.measuredAt"
+            type="datetime"
+            placeholder="选择测量时间"
+          />
+        </el-form-item>
+        <el-form-item label="数据来源" prop="source">
+          <el-select v-model="physiologicalForm.source" placeholder="请选择数据来源">
+            <el-option label="手动录入" value="manual" />
+            <el-option label="设备上传" value="device" />
+            <el-option label="AI提取" value="ai" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="设备信息" prop="deviceInfo" v-if="physiologicalForm.source === 'device'">
+          <el-input v-model="physiologicalForm.deviceInfo" placeholder="请输入设备信息" />
+        </el-form-item>
+        <el-form-item label="备注" prop="notes">
+          <el-input
+            v-model="physiologicalForm.notes"
+            type="textarea"
+            rows="2"
+            placeholder="请输入备注"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="physiologicalDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitPhysiological">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
-import type { Patient, FollowUpRecord, MedicalRecord } from '@/types'
+import type { Patient, FollowUpRecord, MedicalRecord, PhysiologicalData } from '@/types'
 import { medicalApi } from '@/api/medical'
 import FollowUpTemplateForm from '@/components/FollowUpTemplateForm.vue'
+import { physiologicalApi } from '../api/medical'
+import VChart from 'vue-echarts'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { LineChart } from 'echarts/charts'
+import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent,
+  DataZoomComponent
+} from 'echarts/components'
+
+// 注册必须的组件
+use([
+  CanvasRenderer,
+  LineChart,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent,
+  DataZoomComponent
+])
 
 const props = defineProps<{
   patient?: Patient
@@ -230,6 +355,8 @@ const props = defineProps<{
 
 const followUpRecords = ref<FollowUpRecord[]>([])
 const medicalRecords = ref<MedicalRecord[]>([])
+const physiologicalData = ref<PhysiologicalData[]>([])
+const activeDataType = ref('blood_pressure')
 
 // 加载随访记录
 const loadFollowUpRecords = async () => {
@@ -253,25 +380,41 @@ const loadMedicalRecords = async () => {
   }
 }
 
+// 加载生理数据
+const loadPhysiologicalData = async () => {
+  if (!props.patient) return
+  try {
+    const response = await physiologicalApi.getPhysiologicalData(props.patient.id)
+    physiologicalData.value = response
+  } catch (error) {
+    console.error('Failed to load physiological data:', error)
+    ElMessage.error('加载生理数据失败')
+  }
+}
+
 // 监听患者变化
 watch(() => props.patient?.id, () => {
   loadFollowUpRecords()
   loadMedicalRecords()
+  loadPhysiologicalData()
 })
 
 onMounted(() => {
   if (props.patient) {
     loadFollowUpRecords()
     loadMedicalRecords()
+    loadPhysiologicalData()
   }
 })
 
 const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  })
+  const d = new Date(date)
+  // 减去8小时
+  d.setHours(d.getHours() - 8)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 const formatGender = (gender: string) => {
@@ -386,12 +529,227 @@ const submitMedical = async () => {
   })
 }
 
+// 显示新增生理数据弹窗
+const showAddPhysiological = () => {
+  physiologicalDialogVisible.value = true
+  physiologicalForm.value = {
+    type: activeDataType.value,
+    value: '',
+    measuredAt: new Date(),
+    notes: '',
+    source: 'manual',
+    deviceInfo: ''
+  }
+}
+
+// 生理数据表单相关
+const physiologicalDialogVisible = ref(false)
+const physiologicalFormRef = ref()
+const physiologicalForm = ref({
+  type: 'blood_pressure',
+  value: '',
+  measuredAt: new Date(),
+  notes: '',
+  source: 'manual',
+  deviceInfo: ''
+})
+
+const physiologicalRules = {
+  type: [{ required: true, message: '请选择数据类型', trigger: 'change' }],
+  value: [{ required: true, message: '请输入数值', trigger: 'blur' }],
+  measuredAt: [{ required: true, message: '请选择测量时间', trigger: 'change' }]
+}
+
+// 提交生理数据
+const submitPhysiological = async () => {
+  if (!physiologicalFormRef.value) return
+  
+  await physiologicalFormRef.value.validate(async (valid) => {
+    if (valid && props.patient) {
+      try {
+        const data = {
+          ...physiologicalForm.value,
+          patientId: props.patient.id
+        }
+        await physiologicalApi.createPhysiologicalData(data)
+        ElMessage.success('生理数据添加成功')
+        physiologicalDialogVisible.value = false
+        loadPhysiologicalData()
+      } catch (error) {
+        console.error('Failed to create physiological data:', error)
+        ElMessage.error('添加生理数据失败')
+      }
+    }
+  })
+}
+
 // 添加tab点击处理函数
 const handleTabClick = (tab: any) => {
   const element = document.getElementById(tab.props.name)
   if (element) {
     element.scrollIntoView({ behavior: 'smooth' })
   }
+}
+
+// 血压图表配置
+const bloodPressureChartOption = computed(() => {
+  const data = physiologicalData.value
+    .filter(d => d.type === 'blood_pressure')
+    .sort((a, b) => new Date(a.measuredAt).getTime() - new Date(b.measuredAt).getTime())
+
+  const dates = data.map(d => formatDateTime(d.measuredAt))
+  const values = data.map(d => {
+    const [systolic, diastolic] = d.value.split('/')
+    return [Number(systolic), Number(diastolic)]
+  })
+
+  return {
+    title: {
+      text: '血压趋势图',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis',
+      formatter: function (params: any) {
+        const time = params[0].axisValue
+        const systolic = params[0].data
+        const diastolic = params[1].data
+        return `${time}<br/>收缩压：${systolic} mmHg<br/>舒张压：${diastolic} mmHg`
+      }
+    },
+    legend: {
+      data: ['收缩压', '舒张压'],
+      top: 30
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '10%',
+      containLabel: true
+    },
+    dataZoom: [
+      {
+        type: 'inside',
+        start: Math.max(0, 100 - (1000 / data.length)), // 默认显示最近的数据
+        end: 100
+      },
+      {
+        type: 'slider'
+      }
+    ],
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLabel: {
+        rotate: 45
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: 'mmHg',
+      min: 40,
+      max: 200
+    },
+    series: [
+      {
+        name: '收缩压',
+        type: 'line',
+        data: values.map(v => v[0]),
+        markLine: {
+          data: [
+            { yAxis: 140, name: '收缩压警戒线' }
+          ]
+        }
+      },
+      {
+        name: '舒张压',
+        type: 'line',
+        data: values.map(v => v[1]),
+        markLine: {
+          data: [
+            { yAxis: 90, name: '舒张压警戒线' }
+          ]
+        }
+      }
+    ]
+  }
+})
+
+// 血糖图表配置
+const bloodSugarChartOption = computed(() => {
+  const data = physiologicalData.value
+    .filter(d => d.type === 'blood_sugar')
+    .sort((a, b) => new Date(a.measuredAt).getTime() - new Date(b.measuredAt).getTime())
+
+  const dates = data.map(d => formatDateTime(d.measuredAt))
+  const values = data.map(d => Number(d.value))
+
+  return {
+    title: {
+      text: '血糖趋势图',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis',
+      formatter: function (params: any) {
+        const time = params[0].axisValue
+        const value = params[0].data
+        return `${time}<br/>血糖：${value} mmol/L`
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '10%',
+      containLabel: true
+    },
+    dataZoom: [
+      {
+        type: 'inside',
+        start: Math.max(0, 100 - (1000 / data.length)),
+        end: 100
+      },
+      {
+        type: 'slider'
+      }
+    ],
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLabel: {
+        rotate: 45
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: 'mmol/L',
+      min: 3,
+      max: 15
+    },
+    series: [
+      {
+        type: 'line',
+        data: values,
+        markLine: {
+          data: [
+            { yAxis: 6.1, name: '空腹警戒线' },
+            { yAxis: 7.8, name: '餐后警戒线' }
+          ]
+        }
+      }
+    ]
+  }
+})
+
+const formatDateTime = (date: string) => {
+  const d = new Date(date)
+  d.setHours(d.getHours() - 8)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hour = String(d.getHours()).padStart(2, '0')
+  const minute = String(d.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hour}:${minute}`
 }
 </script>
 
@@ -520,5 +878,20 @@ const handleTabClick = (tab: any) => {
 .profile-content::-webkit-scrollbar-thumb {
   background-color: #909399;
   border-radius: 3px;
+}
+
+.chart-container {
+  width: 100%;
+  height: 400px;
+  margin-bottom: 20px;
+}
+
+.chart {
+  width: 100%;
+  height: 100%;
+}
+
+:deep(.el-tabs__content) {
+  padding: 20px 0;
 }
 </style> 
