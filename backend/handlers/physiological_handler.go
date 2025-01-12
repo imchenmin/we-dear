@@ -5,6 +5,7 @@ import (
 	"we-dear/models"
 	"we-dear/storage"
 	"we-dear/utils"
+	"we-dear/websocket"
 
 	"github.com/gin-gonic/gin"
 )
@@ -54,6 +55,9 @@ func CreatePhysiologicalData(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建生理数据失败"})
 		return
 	}
+
+	// 发送WebSocket通知
+	websocket.GetService().NotifyNewPhysiologicalData(&data)
 
 	c.JSON(http.StatusOK, data)
 }

@@ -6,6 +6,7 @@ import (
 	"we-dear/config"
 	"we-dear/handlers"
 	"we-dear/middleware"
+	"we-dear/websocket"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,6 +21,9 @@ func main() {
 	// 等待一下确保数据库连接完全建立
 	time.Sleep(time.Second)
 
+	// 初始化WebSocket服务
+	wsService := websocket.GetService()
+
 	router := gin.Default()
 
 	// 中间件
@@ -27,6 +31,11 @@ func main() {
 
 	// 静态文件服务
 	router.Static("/uploads", "./uploads")
+
+	// WebSocket路由
+	router.GET("/ws", func(c *gin.Context) {
+		wsService.GetManager().HandleWebSocket(c)
+	})
 
 	// API 路由
 	api := router.Group("/api")

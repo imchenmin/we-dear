@@ -318,7 +318,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
@@ -337,6 +337,7 @@ import {
   GridComponent,
   DataZoomComponent
 } from 'echarts/components'
+import { WebSocketService } from '@/utils/websocket'
 
 // 注册必须的组件
 use([
@@ -357,6 +358,30 @@ const followUpRecords = ref<FollowUpRecord[]>([])
 const medicalRecords = ref<MedicalRecord[]>([])
 const physiologicalData = ref<PhysiologicalData[]>([])
 const activeDataType = ref('blood_pressure')
+
+const wsService = WebSocketService.getInstance()
+
+// 处理新的聊天消息
+const handleNewMessage = (payload: any) => {
+  if (payload.patientId === props.patient?.id) {
+    loadFollowUpRecords()
+  }
+}
+
+// 处理新的AI建议
+const handleNewAISuggestion = (payload: any) => {
+  if (payload.patientId === props.patient?.id) {
+    // 如果当前正在查看相关的消息，刷新AI建议列表
+    loadAISuggestions()
+  }
+}
+
+// 处理新的生理数据
+const handleNewPhysiologicalData = (payload: any) => {
+  if (payload.patientId === props.patient?.id) {
+    loadPhysiologicalData()
+  }
+}
 
 // 加载随访记录
 const loadFollowUpRecords = async () => {
@@ -404,7 +429,19 @@ onMounted(() => {
     loadFollowUpRecords()
     loadMedicalRecords()
     loadPhysiologicalData()
+
+    // 注册WebSocket消息处理器
+    wsService.addMessageHandler('chat', handleNewMessage)
+    wsService.addMessageHandler('ai_suggestion', handleNewAISuggestion)
+    wsService.addMessageHandler('physiological', handleNewPhysiologicalData)
   }
+})
+
+// 在组件卸载时移除消息处理器
+onUnmounted(() => {
+  wsService.removeMessageHandler('chat', handleNewMessage)
+  wsService.removeMessageHandler('ai_suggestion', handleNewAISuggestion)
+  wsService.removeMessageHandler('physiological', handleNewPhysiologicalData)
 })
 
 const formatDate = (date: string) => {

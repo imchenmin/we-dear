@@ -15,3 +15,22 @@ html, body {
   height: 100%;
 }
 </style>
+
+<script setup>
+import { useUserStore } from '@/stores/user'
+import { WebSocketService } from '@/utils/websocket'
+import { onMounted, onUnmounted } from 'vue'
+
+const userStore = useUserStore()
+const wsService = WebSocketService.getInstance()
+
+onMounted(() => {
+  if (userStore.isLoggedIn) {
+    wsService.connect()
+  }
+})
+
+onUnmounted(() => {
+  wsService.disconnect()
+})
+</script>

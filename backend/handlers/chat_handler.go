@@ -15,6 +15,7 @@ import (
 	"we-dear/config"
 	"we-dear/models"
 	"we-dear/services"
+	"we-dear/websocket"
 )
 
 var (
@@ -174,6 +175,9 @@ func SendDoctorMessage(c *gin.Context) {
 		return
 	}
 
+	// 发送WebSocket通知
+	websocket.GetService().NotifyNewMessage(&message)
+
 	c.JSON(http.StatusOK, message)
 }
 
@@ -213,6 +217,9 @@ func SendPatientMessage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 发送WebSocket通知
+	websocket.GetService().NotifyNewMessage(&message)
 
 	// 将消息放入AI处理队列
 	go processAIResponse(message.ID, patientId, req.Content, &patient)
@@ -256,6 +263,9 @@ func processAIResponse(messageID string, patientID string, content string, patie
 		log.Printf("保存AI建议失败: %v", err)
 		return
 	}
+
+	// 发送WebSocket通知
+	websocket.GetService().NotifyNewAISuggestion(suggestion)
 
 	log.Printf("成功生成并保存AI建议 (MessageID: %s)", messageID)
 }
