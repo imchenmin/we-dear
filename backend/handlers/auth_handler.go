@@ -3,6 +3,8 @@ package handlers
 import (
 	"net/http"
 	"time"
+	"we-dear/config"
+	"we-dear/models"
 	"we-dear/storage"
 	"we-dear/utils"
 
@@ -12,12 +14,20 @@ import (
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
+	Role     string `json:"role" binding:"required,oneof=doctor patient"`
 }
 
 type ChangePasswordRequest struct {
 	UserID      string `json:"userId"`      // 要修改密码的用户ID（管理员使用）
 	OldPassword string `json:"oldPassword"` // 旧密码（普通用户必填）
 	NewPassword string `json:"newPassword" binding:"required"`
+}
+
+type PatientRegistrationRequest struct {
+	Name     string `json:"name" binding:"required"`
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required,min=6"`
+	DoctorID string `json:"doctorId" binding:"required"`
 }
 
 // Login 处理登录请求
@@ -28,6 +38,14 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	if req.Role == "doctor" {
+		handleDoctorLogin(c, req)
+	} else {
+		handlePatientLogin(c, req)
+	}
+}
+
+func handleDoctorLogin(c *gin.Context, req LoginRequest) {
 	doctor, err := storage.GetDoctorStorage().GetDoctorByUsername(req.Username)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
@@ -45,7 +63,7 @@ func Login(c *gin.Context) {
 	storage.GetDoctorStorage().UpdateDoctor(doctor)
 
 	// 生成token
-	token, err := utils.GenerateToken(doctor.ID, doctor.Username, doctor.Role)
+	token, err := utils.GenerateToken(doctor.ID, doctor.Name, "doctor")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成token失败"})
 		return
@@ -57,8 +75,40 @@ func Login(c *gin.Context) {
 			"id":       doctor.ID,
 			"username": doctor.Username,
 			"name":     doctor.Name,
-			"role":     doctor.Role,
+			"role":     "doctor",
 			"avatar":   doctor.Avatar,
+		},
+	})
+}
+
+func handlePatientLogin(c *gin.Context, req LoginRequest) {
+	var patient models.Patient
+	if err := config.DB.Where("username = ?", req.Username).First(&patient).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
+		return
+	}
+
+	hashedPassword := utils.HashPassword(req.Password, patient.Salt)
+	if hashedPassword != patient.Password {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户名或密码错误"})
+		return
+	}
+
+	// 生成token - 使用username而不是name
+	token, err := utils.GenerateToken(patient.ID, patient.Username, "patient")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成token失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+		"user": gin.H{
+			"id":       patient.ID,
+			"username": patient.Username,
+			"name":     patient.Name,
+			"role":     "patient",
+			"doctorId": patient.DoctorID,
 		},
 	})
 }
@@ -119,4 +169,62 @@ func ChangePassword(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "密码修改成功"})
+}
+
+func Register(c *gin.Context) {
+	if !config.GlobalConfig.App.AllowPatientRegistration {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Patient registration is currently disabled"})
+		return
+	}
+
+	var req PatientRegistrationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if doctor exists
+	var doctor models.Doctor
+	if err := config.DB.First(&doctor, "id = ?", req.DoctorID).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Selected doctor not found"})
+		return
+	}
+
+	// Check if username already exists
+	var existingPatient models.Patient
+	if err := config.DB.Where("username = ?", req.Username).First(&existingPatient).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username already registered"})
+		return
+	}
+
+	// Generate salt and hash password
+	salt, err := utils.GenerateSalt()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate salt"})
+		return
+	}
+	hashedPassword := utils.HashPassword(req.Password, salt)
+
+	patient := models.Patient{
+		Name:     req.Name,
+		Username: req.Username,
+		Password: hashedPassword,
+		Salt:     salt,
+		DoctorID: req.DoctorID,
+	}
+
+	if err := config.DB.Create(&patient).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create patient"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Registration successful",
+		"patient": gin.H{
+			"id":       patient.ID,
+			"username": patient.Username,
+			"name":     patient.Name,
+			"doctorId": patient.DoctorID,
+		},
+	})
 }

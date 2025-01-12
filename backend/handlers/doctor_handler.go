@@ -51,6 +51,16 @@ func GetAllDoctors(c *gin.Context) {
 	c.JSON(http.StatusOK, doctors)
 }
 
+func GetDoctorById(c *gin.Context) {
+	id := c.Param("id")
+	doctor, err := initDoctorStorage().GetDoctorByID(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, doctor)
+}
+
 func UpdateDoctor(c *gin.Context) {
 	id := c.Param("id")
 	var doctor models.Doctor

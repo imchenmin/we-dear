@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	DB DatabaseConfig
-	AI AIConfig
+	DB  DatabaseConfig
+	AI  AIConfig
+	App AppConfig
 }
 
 type DatabaseConfig struct {
@@ -20,12 +21,16 @@ type DatabaseConfig struct {
 	Name     string
 }
 
+type AppConfig struct {
+	AllowPatientRegistration bool
+}
+
 var GlobalConfig Config
 
 func Init() {
 	// 添加更详细的日志
 	log.Printf("开始加载配置...")
-	
+
 	// 尝试加载 .env 文件
 	err := godotenv.Load()
 	if err != nil {
@@ -57,6 +62,9 @@ func Init() {
 			Temperature: DefaultAIConfig.Temperature,
 			MaxTokens:   DefaultAIConfig.MaxTokens,
 			TopP:        DefaultAIConfig.TopP,
+		},
+		App: AppConfig{
+			AllowPatientRegistration: getEnvOrDefault("ALLOW_PATIENT_REGISTRATION", "true") == "true",
 		},
 	}
 

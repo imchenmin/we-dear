@@ -17,9 +17,9 @@ const apiClient = axios.create({
 // 请求拦截器
 apiClient.interceptors.request.use(
   config => {
-    const userStore = useUserStore()
-    if (userStore.token) {
-      config.headers.Authorization = `Bearer ${userStore.token}`
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
     return config
   },
@@ -35,7 +35,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       const userStore = useUserStore()
       userStore.logout()
-      router.push('/login')
+      const userRole = localStorage.getItem('userRole')
+      router.push(userRole === 'doctor' ? '/doctor/login' : '/patient/login')
       ElMessage.error('登录已过期，请重新登录')
       return Promise.reject(error)
     }

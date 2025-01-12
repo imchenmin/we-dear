@@ -1,28 +1,23 @@
 <template>
   <div class="patient-chat">
-    <!-- 左侧患者列表 -->
-    <div class="patient-list-container">
-      <PatientList
-        :patients="patients"
-        v-model="selectedPatientId"
-      />
-    </div>
-
-    <!-- 右侧聊天区域 -->
-    <div class="chat-container" v-if="currentPatient">
-      <!-- 聊天区域 -->
+    <!-- 聊天区域 -->
+    <div class="chat-container">
       <div class="chat-area">
         <div class="chat-header">
-          <el-avatar :size="40" :src="currentPatient.avatar" />
-          <div class="patient-info">
-            <div class="patient-name">{{ currentPatient.name }}</div>
-            <div class="patient-details">
-              {{ currentPatient.age }}岁 | {{ currentPatient.gender === 'male' ? '男' : '女' }}
-              <template v-if="currentPatient.chronicDiseases.length > 0">
-                | {{ currentPatient.chronicDiseases.join('、') }}
-              </template>
+          <template v-if="selectedDoctor">
+            <el-avatar :size="40" :src="selectedDoctor.avatar" />
+            <div class="doctor-info">
+              <div class="doctor-name">{{ selectedDoctor.name }}</div>
+              <div class="doctor-details">
+                {{ selectedDoctor.title }} | {{ selectedDoctor.department?.name }}
+              </div>
             </div>
-          </div>
+          </template>
+          <template v-else>
+            <div class="doctor-info">
+              <div class="doctor-name">正在加载医生信息...</div>
+            </div>
+          </template>
         </div>
 
         <div class="chat-messages" ref="messagesContainer">
@@ -41,54 +36,87 @@
         <div class="chat-input-area">
           <ChatInput
             @send="handleSendMessage"
-            :disabled="!currentPatient"
+            :disabled="!selectedDoctor"
           />
         </div>
       </div>
-    </div>
-
-    <!-- 未选择患者时的提示 -->
-    <div v-else class="no-patient-selected">
-      <el-empty description="请选择一位患者开始对话" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/stores/user'
 import ChatMessage from '@/components/ChatMessage.vue'
 import ChatInput from '@/components/ChatInput.vue'
-import PatientList from '@/components/PatientList.vue'
-import { patientApi } from '@/api/patient'
-import type { Patient, Message } from '@/types'
+import { doctorApi } from '@/api/doctor'
+import type { Doctor, Message } from '@/types'
+import { useRouter } from 'vue-router'
 
-const patients = ref<Patient[]>([])
-const selectedPatientId = ref('')
+const router = useRouter()
+const userStore = useUserStore()
+const selectedDoctor = ref<Doctor | null>(null)
 const messages = ref<Message[]>([])
 const messagesContainer = ref<HTMLElement | null>(null)
 
-// 获取当前选中的患者信息
-const currentPatient = computed(() => {
-  return patients.value.find(p => p.id === selectedPatientId.value)
-})
+// 检查用户登录状态
+const checkUserLogin = () => {
+  if (!userStore.token || !userStore.user) {
+    ElMessage.error('请先登录')
+    router.push('/patient/login')
+    return false
+  }
+  return true
+}
 
-// 加载患者列表
-const loadPatients = async () => {
+// 加载医生信息
+const loadDoctor = async () => {
+  if (!checkUserLogin()) return
+
   try {
-    patients.value = await patientApi.getPatients()
+    // 直接从用户信息中获取医生ID
+    const doctorId = userStore.user.doctorId
+    if (!doctorId) {
+      ElMessage.error('未分配医生')
+      return
+    }
+
+    // 使用医生信息接口
+    const doctorResponse = await fetch(`/api/doctors/${doctorId}`, {
+      headers: {
+        'Authorization': `Bearer ${userStore.token}`
+      }
+    })
+    if (!doctorResponse.ok) {
+      throw new Error('Failed to fetch doctor info')
+    }
+    selectedDoctor.value = await doctorResponse.json()
   } catch (error) {
-    console.error('Failed to load patients:', error)
-    ElMessage.error('加载患者列表失败')
+    console.error('Failed to load doctor:', error)
+    ElMessage.error('加载医生信息失败')
   }
 }
 
 // 加载聊天记录
 const loadMessages = async () => {
-  if (!selectedPatientId.value) return
+  if (!userStore.user) {
+    ElMessage.error('用户未登录')
+    return
+  }
 
   try {
-    messages.value = await patientApi.getChatHistory(selectedPatientId.value)
+    const response = await fetch(`/api/chat/${userStore.user.id}`, {
+      headers: {
+        'Authorization': `Bearer ${userStore.token}`
+      },
+      params: {
+        role: 'patient',
+        userId: userStore.user.id
+      }
+    })
+    if (!response.ok) throw new Error('Failed to fetch messages')
+    messages.value = await response.json()
     scrollToBottom()
   } catch (error) {
     console.error('Failed to load messages:', error)
@@ -98,14 +126,27 @@ const loadMessages = async () => {
 
 // 发送消息
 const handleSendMessage = async (content: string) => {
-  if (!currentPatient.value) return
+  if (!userStore.user || !selectedDoctor.value) {
+    ElMessage.error('用户未登录或未分配医生')
+    return
+  }
 
   try {
-    const message = await patientApi.sendPatientMessage(
-      selectedPatientId.value,
-      content,
-      currentPatient.value.name
-    )
+    const response = await fetch(`/api/chat/${userStore.user.id}/patient`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userStore.token}`
+      },
+      body: JSON.stringify({
+        content,
+        sender: userStore.user.id,
+        doctorId: selectedDoctor.value.id
+      })
+    })
+
+    if (!response.ok) throw new Error('Failed to send message')
+    const message = await response.json()
     messages.value.push(message)
     scrollToBottom()
   } catch (error) {
@@ -123,16 +164,23 @@ const scrollToBottom = () => {
   }, 100)
 }
 
-// 监听患者切换
-watch(selectedPatientId, () => {
-  messages.value = []
-  loadMessages()
-})
-
 // 组件挂载时加载数据
 onMounted(() => {
-  loadPatients()
+  if (checkUserLogin()) {
+    loadDoctor().then(() => {
+      loadMessages()
+    })
+  }
 })
+
+// 监听用户状态变化
+watch(() => userStore.user, (newUser) => {
+  if (newUser) {
+    loadDoctor().then(() => {
+      loadMessages()
+    })
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -140,20 +188,12 @@ onMounted(() => {
   display: flex;
   height: 100vh;
   background-color: #f5f7fa;
-}
-
-.patient-list-container {
-  width: 300px;
-  flex-shrink: 0;
-  background-color: #fff;
-  border-right: 1px solid #e4e7ed;
+  padding: 20px;
 }
 
 .chat-container {
   flex: 1;
   display: flex;
-  padding: 20px;
-  overflow: hidden;
 }
 
 .chat-area {
@@ -175,17 +215,17 @@ onMounted(() => {
   background-color: #fff;
 }
 
-.patient-info {
+.doctor-info {
   flex: 1;
 }
 
-.patient-name {
+.doctor-name {
   font-size: 16px;
   font-weight: 500;
   color: #303133;
 }
 
-.patient-details {
+.doctor-details {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
@@ -209,14 +249,6 @@ onMounted(() => {
   height: 100%;
   color: #909399;
   font-size: 14px;
-}
-
-.no-patient-selected {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #fff;
 }
 
 /* 自定义滚动条样式 */

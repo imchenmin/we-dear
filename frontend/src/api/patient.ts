@@ -17,7 +17,12 @@ export const patientApi = {
   // 获取聊天历史
   async getChatHistory(patientId: string): Promise<Message[]> {
     console.log('Fetching chat history for patient:', patientId)
-    return request.get(`/chat/${patientId}`)
+    return request.get(`/chat/${patientId}`, {
+      params: {
+        role: 'doctor',
+        userId: localStorage.getItem('userId')
+      }
+    })
   },
 
   // 发送医生消息

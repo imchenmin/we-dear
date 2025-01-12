@@ -56,6 +56,7 @@ import PatientProfile from '@/components/PatientProfile.vue'
 import ChatMessage from '@/components/ChatMessage.vue'
 import ChatInput from '@/components/ChatInput.vue'
 import { patientApi } from '@/api/patient'
+import { chatApi } from '@/api/chat'
 import type { Patient, Message } from '@/types'
 
 const patients = ref<Patient[]>([])
@@ -84,7 +85,7 @@ const loadMessages = async () => {
   
   try {
     console.log('Loading chat history for patient:', activePatientId.value)
-    messages.value = await patientApi.getChatHistory(activePatientId.value)
+    messages.value = await chatApi.getChatHistory(activePatientId.value)
     console.log('Loaded messages:', messages.value)
     scrollToBottom()
   } catch (error) {
@@ -99,7 +100,7 @@ const handleSendMessage = async (content: string) => {
   
   try {
     console.log('Sending message for patient:', activePatientId.value)
-    const message = await patientApi.sendDoctorMessage(
+    const message = await chatApi.sendMessage(
       activePatientId.value,
       content,
       'doctor'

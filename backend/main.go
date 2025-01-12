@@ -42,7 +42,8 @@ func main() {
 	{
 		// 公开路由
 		api.POST("/login", handlers.Login)
-		// api.POST("/register", handlers.Register)
+		api.POST("/register", handlers.Register)
+		api.GET("/doctors", handlers.GetAllDoctors)
 	}
 
 	// 需要认证的路由
@@ -56,7 +57,7 @@ func main() {
 		authorized.POST("/patients", handlers.CreatePatient)
 
 		// 医生相关
-		authorized.GET("/doctors", handlers.GetAllDoctors)
+		authorized.GET("/doctors/:id", handlers.GetDoctorById)
 		authorized.POST("/doctors", middleware.AdminRequired(), handlers.CreateDoctor)
 		authorized.PUT("/doctors/:id", handlers.UpdateDoctor)
 		authorized.DELETE("/doctors/:id", middleware.AdminRequired(), handlers.DeleteDoctor)

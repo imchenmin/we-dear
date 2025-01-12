@@ -121,8 +121,14 @@ func GetChatHistory(c *gin.Context) {
 	role, _ := c.Get("role")
 
 	// 检查权限
-	if role != "admin" {
-		// 非管理员只能查看自己的患者聊天记录
+	if role == "patient" {
+		// 患者只能查看自己的聊天记录
+		if patientID != userID.(string) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问此聊天记录"})
+			return
+		}
+	} else if role == "doctor" {
+		// 医生只能查看自己的患者聊天记录
 		var patient models.Patient
 		if err := config.DB.First(&patient, "id = ?", patientID).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "患者不存在"})
@@ -133,6 +139,10 @@ func GetChatHistory(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问此患者的聊天记录"})
 			return
 		}
+	} else if role != "admin" {
+		// 非医生、患者、管理员无权访问
+		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问聊天记录"})
+		return
 	}
 
 	// 获取聊天记录

@@ -304,3 +304,209 @@ POST /upload
 | 403    | 权限不足           |
 | 404    | 资源不存在         |
 | 500    | 服务器内部错误     |
+```
+
+## 随访模板
+
+### 获取所有模板
+
+```http
+GET /templates
+```
+
+**响应示例:**
+
+```json
+[
+  {
+    "id": "template1",
+    "name": "糖尿病随访模板",
+    "description": "用于糖尿病患者的定期随访",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "bloodSugar": {
+          "type": "number",
+          "title": "血糖值"
+        },
+        "symptoms": {
+          "type": "array",
+          "title": "症状",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "version": "1.0.0",
+    "status": "enabled",
+    "categories": ["diabetes"],
+    "createdBy": "doctor1",
+    "updatedBy": "doctor1",
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### 获取指定模板
+
+```http
+GET /templates/:id
+```
+
+### 创建模板
+
+```http
+POST /templates
+```
+
+**权限要求:** 管理员
+
+**请求参数:**
+
+| 参数名      | 类型     | 必填 | 描述                |
+|------------|----------|------|-------------------|
+| name       | string   | 是   | 模板名称           |
+| description| string   | 否   | 模板描述           |
+| schema     | object   | 是   | JSON Schema 格式   |
+| version    | string   | 是   | 版本号             |
+| categories | string[] | 是   | 适用分类           |
+
+### 更新模板
+
+```http
+PUT /templates/:id
+```
+
+**权限要求:** 管理员
+
+### 删除模板
+
+```http
+DELETE /templates/:id
+```
+
+**权限要求:** 管理员
+
+### 按分类获取模板
+
+```http
+GET /templates/category?category=diabetes
+```
+
+**查询参数:**
+
+| 参数名    | 类型   | 描述     |
+|----------|--------|----------|
+| category | string | 模板分类  |
+
+**响应格式同获取所有模板**
+
+## AI代理模板
+
+### 获取所有AI代理模板
+
+```http
+GET /ai-templates
+```
+
+**响应示例:**
+
+```json
+[
+  {
+    "id": "template1",
+    "name": "糖尿病患者AI助手",
+    "version": "1.0.0",
+    "description": "专门针对糖尿病患者的AI对话模板",
+    "content": {
+      "systemPrompt": "你是一位专业的糖尿病专科医生...",
+      "rules": [
+        "需要关注患者的血糖值变化",
+        "注意询问患者的饮食习惯",
+        "重点关注并发症风险"
+      ],
+      "contextLength": 10,
+      "temperature": 0.7
+    },
+    "categories": ["diabetes"],
+    "status": "enabled",
+    "auditStatus": "approved",
+    "createdBy": "admin1",
+    "updatedBy": "admin1",
+    "lastAuditBy": "admin2",
+    "lastAuditAt": "2024-01-01T00:00:00Z",
+    "auditNotes": "模板内容合规，可以使用"
+  }
+]
+```
+
+### 获取指定AI代理模板
+
+```http
+GET /ai-templates/:id
+```
+
+### 创建AI代理模板
+
+```http
+POST /ai-templates
+```
+
+**权限要求:** 管理员
+
+**请求参数:**
+
+| 参数名      | 类型     | 必填 | 描述                |
+|------------|----------|------|-------------------|
+| name       | string   | 是   | 模板名称           |
+| version    | string   | 是   | 版本号             |
+| description| string   | 否   | 模板描述           |
+| content    | object   | 是   | 模板内容（JSON格式） |
+| categories | string[] | 是   | 适用分类           |
+
+### 更新AI代理模板
+
+```http
+PUT /ai-templates/:id
+```
+
+**权限要求:** 管理员
+
+### 删除AI代理模板
+
+```http
+DELETE /ai-templates/:id
+```
+
+**权限要求:** 管理员
+
+### 审核AI代理模板
+
+```http
+POST /ai-templates/:id/audit
+```
+
+**权限要求:** 管理员
+
+**请求参数:**
+
+| 参数名      | 类型   | 必填 | 描述                |
+|------------|--------|------|-------------------|
+| auditStatus| string | 是   | 审核状态(pending/approved/rejected) |
+| auditNotes | string | 否   | 审核备注           |
+
+### 按分类获取AI代理模板
+
+```http
+GET /ai-templates/category?category=diabetes
+```
+
+**查询参数:**
+
+| 参数名    | 类型   | 描述     |
+|----------|--------|----------|
+| category | string | 模板分类  |
+
+**响应格式同获取所有模板**

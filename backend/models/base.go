@@ -46,6 +46,9 @@ type Doctor struct {
 type Patient struct {
 	BaseModel
 	Name            string         `json:"name" gorm:"index"`
+	Username        string         `json:"username" gorm:"unique"` // 登录用户名
+	Password        string         `json:"-" gorm:"not null"`      // 密码（json中不返回）
+	Salt            string         `json:"-"`                      // 密码盐
 	Gender          string         `json:"gender"`
 	Age             int            `json:"age"` // 由身份证号计算
 	Birthday        time.Time      `json:"birthday"`
@@ -190,11 +193,11 @@ type AISuggestionFeedback struct {
 // PhysiologicalData 生理数据记录
 type PhysiologicalData struct {
 	BaseModel
-	PatientID  string    `json:"patientId" gorm:"index"`  // 患者ID
-	Type       string    `json:"type" gorm:"index"`       // 数据类型(blood_pressure/blood_sugar等)
-	Value      string    `json:"value"`                   // 数据值
-	MeasuredAt time.Time `json:"measuredAt"`              // 测量时间
-	Notes      string    `json:"notes"`                   // 备注
-	Source     string    `json:"source"`                  // 数据来源(手动录入/设备上传/AI提取)
-	DeviceInfo string    `json:"deviceInfo"`              // 设备信息(如果是设备上传)
+	PatientID  string    `json:"patientId" gorm:"index"` // 患者ID
+	Type       string    `json:"type" gorm:"index"`      // 数据类型(blood_pressure/blood_sugar等)
+	Value      string    `json:"value"`                  // 数据值
+	MeasuredAt time.Time `json:"measuredAt"`             // 测量时间
+	Notes      string    `json:"notes"`                  // 备注
+	Source     string    `json:"source"`                 // 数据来源(手动录入/设备上传/AI提取)
+	DeviceInfo string    `json:"deviceInfo"`             // 设备信息(如果是设备上传)
 }

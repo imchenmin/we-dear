@@ -14,7 +14,7 @@
         label-width="80px"
       >
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" />
+          <el-input v-model="form.username" placeholder="请输入用户名" />
         </el-form-item>
         
         <el-form-item label="密码" prop="password">
@@ -22,12 +22,18 @@
             v-model="form.password"
             type="password"
             show-password
+            placeholder="请输入密码"
           />
         </el-form-item>
         
         <el-form-item>
           <el-button type="primary" @click="handleLogin" :loading="loading">
             登录
+          </el-button>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="text" @click="goToPatientLogin">
+            我是患者，去患者登录 >
           </el-button>
         </el-form-item>
       </el-form>
@@ -40,7 +46,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import { request } from '@/utils/request'
+import { authApi } from '@/api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -51,8 +57,13 @@ const form = reactive({
 })
 
 const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, message: '密码长度不能小于6位', trigger: 'blur' }
+  ]
 }
 
 const loading = ref(false)
@@ -65,11 +76,15 @@ const handleLogin = async () => {
     if (valid) {
       loading.value = true
       try {
-        const data = await request.post('/login', form)
-        userStore.setToken(data.token)
-        userStore.setUser(data.user)
+        const response = await authApi.login({
+          username: form.username,
+          password: form.password,
+          role: 'doctor'
+        })
+        userStore.setToken(response.token)
+        userStore.setUser(response.user)
         ElMessage.success('登录成功')
-        router.push('/')
+        router.push('/doctor')
       } catch (error) {
         // 错误已在request拦截器中处理
       } finally {
@@ -77,6 +92,10 @@ const handleLogin = async () => {
       }
     }
   })
+}
+
+const goToPatientLogin = () => {
+  router.push('/patient/login')
 }
 </script>
 
